@@ -127,6 +127,20 @@ services:
     networks:
       - consent-network
 
+  # One-shot APIM setup: imports IS cert, registers KM, publishes KYCAPI with consent policies
+  apim-setup:
+    build:
+      context: ./docker/apim
+      dockerfile: Dockerfile
+    container_name: consent-apim-setup
+    entrypoint: ["/setup.sh"]
+    depends_on:
+      api-manager:
+        condition: service_healthy
+    networks:
+      - consent-network
+    restart: "no"
+
   # Bank Portal (Branch Officer UI)
   bank-portal:
     build:
@@ -150,8 +164,8 @@ services:
       - ./ciba-test-key.pem:/keys/ciba-test-key.pem:ro
       - ./is-conditional-script.js:/keys/is-conditional-script.js:ro
     depends_on:
-      api-manager:
-        condition: service_healthy
+      apim-setup:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3010/api/status"]
       interval: 10s

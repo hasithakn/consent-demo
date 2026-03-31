@@ -394,6 +394,17 @@ function createCIBARequestJWT(consentId) {
   return jwt.sign(payload, PRIVATE_KEY, { algorithm: 'PS256', header: { kid: 'ciba-test-key-1', alg: 'PS256' } });
 }
 
+async function saveConsentAttribute(consentId, key, value) {
+  const headers = { 'org-id': ORG_ID, 'TPP-client-id': TPP_CLIENT_ID, 'Content-Type': 'application/json' };
+  const r = await fetch(`${OPENFGC_BASE}/api/v1/consents/${consentId}`, {
+    method: 'PUT', headers,
+    body: JSON.stringify({ attributes: { [key]: value } })
+  });
+  if (!r.ok) {
+    console.error(`[Consent] Failed to save attribute ${key}:`, r.status, await r.text());
+  }
+}
+
 async function initiateCIBA(consentId) {
   const requestJwt = createCIBARequestJWT(consentId);
 
@@ -481,6 +492,8 @@ setInterval(async () => {
         continue;
       }
       // Token received — check consent status in OpenFGC before using token
+      const tokenPayload = JSON.parse(Buffer.from(result.access_token.split('.')[1], 'base64').toString());
+      console.log('[Poll] Token claims:', JSON.stringify({ scope: tokenPayload.scope, consent_id: tokenPayload.consent_id, sub: tokenPayload.sub }));
       req.accessToken = result.access_token;
       req.updatedAt = new Date().toISOString();
 
@@ -564,7 +577,10 @@ app.post('/api/kyc-request', async (req, res) => {
     const ciba = await initiateCIBA(consentId);
     if (!ciba) return res.status(500).json({ error: 'Failed to initiate CIBA authorization' });
 
-    // 3. Get web auth link
+    // 3a. Save auth_req_id as consent attribute so IS grant handler can look it up
+    await saveConsentAttribute(consentId, 'auth_req_id', ciba.authReqId);
+
+    // 3b. Get web auth link
     const webAuthLink = await getWebAuthLink(consentId, ciba.authReqId);
 
     // 4. Create request record

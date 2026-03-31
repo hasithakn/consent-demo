@@ -1,0 +1,38 @@
+{
+  "name": "KYCAPI",
+  "version": "1.0.0",
+  "context": "/kyc",
+  "description": "KYC API for person information lookup by NIN",
+  "type": "HTTP",
+  "transport": ["http", "https"],
+  "endpointConfig": {
+    "endpoint_type": "http",
+    "production_endpoints": {"url": "http://mock-backend:3002"},
+    "sandbox_endpoints": {"url": "http://mock-backend:3002"}
+  },
+  "operations": [
+    {
+      "id": "",
+      "target": "/user/{nic}",
+      "verb": "GET",
+      "authType": "Application & Application User",
+      "throttlingPolicy": "Unlimited",
+      "operationPolicies": {
+        "request": [
+          {
+            "policyName": "consentEnforcementPolicy",
+            "policyVersion": "v1",
+            "policyId": "dc24fba1-1def-43eb-9e44-a68d0bc20635",
+            "parameters": {}
+          }
+        ],
+        "response": [],
+        "fault": []
+      }
+    }
+  ],
+  "policies": ["Unlimited"],
+  "visibility": "PUBLIC",
+  "gatewayVendor": "wso2",
+  "gatewayType": "wso2/synapse"
+}

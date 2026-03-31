@@ -1,0 +1,15 @@
+type: operation_policy_specification
+version: v4.6.0
+data:
+  category: Mediation
+  name: consentResponseFilterPolicy
+  version: v1
+  displayName: Consent Response Filter Policy
+  description: "Filters backend API response based on approved consent purposes - only returns fields the user has consented to"
+  applicableFlows:
+    - response
+  supportedGateways:
+    - Synapse
+  supportedApiTypes:
+    - HTTP
+  policyAttributes: []

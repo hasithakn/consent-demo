@@ -1,0 +1,354 @@
+<!--
+ ~ Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
+ ~
+ ~ WSO2 LLC. licenses this file to you under the Apache License,
+ ~ Version 2.0 (the "License"); you may not use this file except
+ ~ in compliance with the License.
+ ~ You may obtain a copy of the License at
+ ~
+ ~     http://www.apache.org/licenses/LICENSE-2.0
+ ~
+ ~ Unless required by applicable law or agreed to in writing,
+ ~ software distributed under the License is distributed on an
+ ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ ~ KIND, either express or implied. See the License for the
+ ~ specific language governing permissions and limitations
+ ~ under the License.
+ -->
+
+<!-- Storing the original request parameters for future reference -->
+<property name="originalRequestJsonBody" expression="json-eval($)" scope="default" type="STRING"/>
+<property name="originalRequestBody" expression="$body"/>
+<property name="originalAuthorizationHeader" expression="$trp:Authorization"/>
+<property name="originalContentTypeHeader" expression="$trp:Content-Type"/>
+<property name="originalAcceptHeader" expression="$trp:Accept"/>
+
+<!-- Extract the API resource path being accessed -->
+<property name="api.resource.path" expression="get-property('api.ut.resource')" scope="default" type="STRING"/>
+
+<!-- This class mediator is responsible for generating the payload for the consent validation service and is stored in the property 'consentEnforcementPayload' -->
+<class name="org.wso2.financial.services.apim.mediation.policies.consent.enforcement.ConsentEnforcementPayloadMediator">
+    <property name="consentIdClaimName" value="consent_id"/>
+</class>
+
+<!-- Log the JWT payload generated for consent validation -->
+<log level="custom">
+    <property name="Message" value="JWT payload generated for consent validation"/>
+    <property name="JWTPayload" expression="$ctx:consentEnforcementPayload"/>
+</log>
+
+<!-- Set the request payload -->
+<payloadFactory media-type="text">
+    <format>$1</format>
+    <args>
+        <arg expression="$ctx:consentEnforcementPayload" />
+    </args>
+</payloadFactory>
+
+<!-- Set the request headers required for calling the consent validation service -->
+<!-- <header name="Authorization" scope="transport" value="Basic {{consentServiceBasicAuthCredentials}}"/> -->
+<header name="Content-Type" scope="transport" value="application/jwt"/>
+<header name="Accept" scope="transport" value="application/json"/>
+<header name="org-id" scope="transport" value="DEMO-ORG-001"/>
+
+<!-- Set the 'messageType' property to text/plain to send JWT as plain text -->
+<property name="messageType" scope="axis2" value="text/plain"/>
+<property name="ContentType" scope="axis2" value="application/json"/>
+
+<!-- Save and then disable REST_URL_POSTFIX so the blocking call goes to OpenFGC root -->
+<property name="savedRestUrlPostfix" expression="get-property('axis2', 'REST_URL_POSTFIX')" scope="default" type="STRING"/>
+<property name="REST_URL_POSTFIX" scope="axis2" action="remove"/>
+
+<!-- Call the consent validation endpoint in blocking mode -->
+<call blocking="true">
+    <endpoint>
+        <http method="POST" uri-template="http://openfgc:3000/api/v1/consents/validate"/>
+    </endpoint>
+</call>
+
+<!-- Log the raw response immediately after the call -->
+<log level="custom">
+    <property name="Message" value="RAW RESPONSE from consent validation API"/>
+    <property name="ResponseBody" expression="$body"/>
+</log>
+
+<!-- Reset message direction and restore REST_URL_POSTFIX after blocking call -->
+<property name="RESPONSE" scope="default" action="remove"/>
+<property name="NO_ENTITY_BODY" scope="axis2" action="remove"/>
+<filter xpath="boolean($ctx:savedRestUrlPostfix)">
+    <then>
+        <property name="REST_URL_POSTFIX" expression="$ctx:savedRestUrlPostfix" scope="axis2"/>
+    </then>
+</filter>
+
+<!-- Set message type back to JSON for processing response -->
+<property name="messageType" scope="axis2" value="application/json"/>
+
+<!-- Log after setting message type -->
+<log level="custom">
+    <property name="Message" value="After setting messageType to JSON"/>
+    <property name="CurrentBody" expression="$body"/>
+    <property name="MessageType" expression="get-property('axis2', 'messageType')"/>
+</log>
+
+<!-- Remove headers used for consent service call -->
+<header name="Authorization" scope="transport" action="remove"/>
+<header name="Content-Type" scope="transport" action="remove"/>
+<header name="Accept" scope="transport" action="remove"/>
+
+<!-- Restore original headers only if they exist -->
+<filter xpath="boolean($ctx:originalAuthorizationHeader)">
+    <then>
+        <header name="Authorization" scope="transport" expression="$ctx:originalAuthorizationHeader"/>
+    </then>
+</filter>
+
+<filter xpath="boolean($ctx:originalContentTypeHeader)">
+    <then>
+        <header name="Content-Type" scope="transport" expression="$ctx:originalContentTypeHeader"/>
+    </then>
+</filter>
+
+<filter xpath="boolean($ctx:originalAcceptHeader)">
+    <then>
+        <header name="Accept" scope="transport" expression="$ctx:originalAcceptHeader"/>
+    </then>
+</filter>
+
+<!-- Log the full validation response for debugging -->
+<log level="custom">
+    <property name="Message" value="Consent validation response received"/>
+    <property name="FullResponse" expression="json-eval($)"/>
+</log>
+
+<!-- Extract required attributes from the response JSON into properties -->
+<property name="isValid" expression="json-eval($.isValid)" scope="default" type="STRING"/>
+<property name="modifiedPayload" expression="json-eval($.modifiedPayload)" scope="default" type="STRING"/>
+<property name="consentInformation" expression="json-eval($.consentInformation)" scope="default" type="STRING"/>
+
+<!-- Log extracted properties -->
+<log level="custom">
+    <property name="Message" value="Extracted properties from validation response"/>
+    <property name="isValid" expression="$ctx:isValid"/>
+    <property name="consentInformation" expression="$ctx:consentInformation"/>
+</log>
+
+<!-- Log for debugging - check if isValid is being evaluated correctly -->
+<log level="custom">
+    <property name="Message" value="About to check isValid condition"/>
+    <property name="isValid_value" expression="$ctx:isValid"/>
+    <property name="isValid_type" expression="get-property('isValid')"/>
+</log>
+
+<!-- Check if 'isValid' is null -->
+<filter xpath="not($ctx:isValid)">
+    <then>
+        <log level="custom">
+            <property name="Message" value="ERROR: isValid is null - unexpected response from validation service"/>
+        </log>
+
+        <!-- Build error response -->
+        <payloadFactory media-type="json">
+            <format>
+                {
+                    "code": "Internal Server Error",
+                    "type": "Consent Enforcement Error",
+                    "message": "Unexpected error occurred at the consent validation service",
+                    "description": "The validation service did not return a valid response."
+                }
+            </format>
+        </payloadFactory>
+
+        <!-- Set HTTP status code -->
+        <property name="HTTP_SC" value="500" scope="axis2"/>
+
+        <!-- Stop further processing and send response -->
+        <respond/>
+    </then>
+</filter>
+
+<!-- Check if 'isValid' is true -->
+<filter source="$ctx:isValid" regex="true">
+    <then>
+        <!-- Extract consent purposes array and requested resource path -->
+        <property name="consentPurposes" expression="json-eval($.consentInformation.purposes)" scope="default" type="STRING"/>
+        <property name="electedResource" expression="$ctx:api.resource.path" scope="default" type="STRING"/>
+        <property name="userId" expression="json-eval($.consentInformation.authorizations[0].userId)" scope="default" type="STRING"/>
+
+        <!-- Log the extracted values for debugging -->
+        <log level="custom">
+            <property name="Message" value="Consent purposes and resource extraction"/>
+            <property name="consentPurposes" expression="$ctx:consentPurposes"/>
+            <property name="electedResource" expression="$ctx:electedResource"/>
+            <property name="userId" expression="$ctx:userId"/>
+        </log>
+
+        <!-- JavaScript to parse consent purposes, validate resource path, and collect approved jsonPaths -->
+        <script language="js">
+            <![CDATA[
+                var consentPurposesStr = mc.getProperty("consentPurposes");
+                var electedResource = mc.getProperty("electedResource");
+                var userId = mc.getProperty("userId");
+                var hasPermission = false;
+                var approvedJsonPaths = [];
+
+                java.lang.System.out.println("[DEBUG] consentPurposesStr: " + consentPurposesStr);
+                java.lang.System.out.println("[DEBUG] electedResource: " + electedResource);
+                java.lang.System.out.println("[DEBUG] userId: " + userId);
+
+                try {
+                    if (consentPurposesStr && electedResource) {
+                        var purposesArray = JSON.parse(consentPurposesStr);
+                        java.lang.System.out.println("[DEBUG] Parsed purposesArray length: " + purposesArray.length);
+
+                        // Iterate through purposes, then through elements within each purpose
+                        for (var i = 0; i < purposesArray.length; i++) {
+                            var purpose = purposesArray[i];
+                            var purposeName = purpose.name;
+                            var elements = purpose.elements;
+
+                            java.lang.System.out.println("[DEBUG] Processing purpose: " + purposeName + 
+                                                        ", elements count: " + (elements ? elements.length : 0));
+
+                            if (!elements) continue;
+
+                            // Iterate through elements within the purpose
+                            for (var j = 0; j < elements.length; j++) {
+                                var element = elements[j];
+
+                                if (element.isUserApproved === true && element.properties && element.properties.resourcePath) {
+                                    var resourcePath = element.properties.resourcePath;
+                                    var jsonPath = element.properties.jsonPath;
+
+                                    java.lang.System.out.println("[DEBUG] Element: " + element.name + 
+                                                                ", isUserApproved: " + element.isUserApproved +
+                                                                ", resourcePath: " + resourcePath + 
+                                                                ", jsonPath: " + jsonPath);
+
+                                    // Check if the resource path matches the requested resource (with {nic} placeholder)
+                                    var resourcePattern = resourcePath.replace("{nic}", "[^/]+");
+                                    var regex = new RegExp("^" + resourcePattern + "$");
+
+                                    if (regex.test(electedResource)) {
+                                        hasPermission = true;
+                                        if (jsonPath) {
+                                            approvedJsonPaths.push(jsonPath);
+                                            java.lang.System.out.println("[DEBUG] Approved jsonPath added: " + jsonPath);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        java.lang.System.out.println("[DEBUG] Total approved jsonPaths: " + approvedJsonPaths.length);
+                        java.lang.System.out.println("[DEBUG] Approved jsonPaths: " + JSON.stringify(approvedJsonPaths));
+
+                        // Store results in context
+                        mc.setProperty("hasResourcePermission", hasPermission.toString());
+                        mc.setProperty("approvedJsonPaths", JSON.stringify(approvedJsonPaths));
+
+                        java.lang.System.out.println("[DEBUG] hasResourcePermission: " + hasPermission);
+                    } else {
+                        mc.setProperty("hasResourcePermission", "false");
+                        mc.setProperty("approvedJsonPaths", "[]");
+                        java.lang.System.out.println("[DEBUG] consentPurposesStr or electedResource is null/empty");
+                    }
+                } catch (e) {
+                    mc.setProperty("hasResourcePermission", "false");
+                    mc.setProperty("approvedJsonPaths", "[]");
+                    mc.setProperty("permissionCheckError", e.toString());
+                    java.lang.System.out.println("[ERROR] Exception in permission check: " + e.toString());
+                }
+            ]]>
+        </script>
+
+        <filter source="$ctx:hasResourcePermission" regex="true">
+            <then>
+                <log level="custom">
+                    <property name="Message" value="SUCCESS: Resource permission validated, request allowed to proceed"/>
+                    <property name="approvedJsonPaths" expression="$ctx:approvedJsonPaths"/>
+                </log>
+
+                <!-- Restore original request body for backend API call -->
+                <payloadFactory media-type="json">
+                    <format>$1</format>
+                    <args>
+                        <arg expression="$ctx:originalRequestJsonBody"/>
+                    </args>
+                </payloadFactory>
+
+            </then>
+            <else>
+                <log level="custom">
+                    <property name="Message" value="ERROR: Resource permission denied - no matching approved purposes"/>
+                    <property name="electedResource" expression="$ctx:electedResource"/>
+                </log>
+
+                <!-- Build error response for insufficient permissions -->
+                <payloadFactory media-type="json">
+                    <format>
+                        {
+                            "code": "Forbidden",
+                            "type": "Insufficient Permissions",
+                            "message": "The consent does not include permission to access this resource",
+                            "description": "No approved consent purposes found for resource: $1"
+                        }
+                    </format>
+                    <args>
+                        <arg expression="get-property('electedResource')" evaluator="xml"/>
+                    </args>
+                </payloadFactory>
+
+                <!-- Set HTTP status code -->
+                <property name="HTTP_SC" value="403" scope="axis2"/>
+
+                <!-- Stop further processing and send response -->
+                <respond/>
+            </else>
+        </filter>
+
+        <filter xpath="boolean($ctx:consentInformation)">
+            <then>
+                <!-- Set 'consentInformation' as an HTTP header if available -->
+                <header name="Account-Request-Information" scope="transport" expression="$ctx:consentInformation"/>
+            </then>
+            <else>
+            </else>
+        </filter>
+    </then>
+    <else>
+        <!-- Log when isValid is false -->
+        <log level="custom">
+            <property name="Message" value="Consent validation failed - isValid is false"/>
+            <property name="errorCode" expression="json-eval($.errorCode)"/>
+            <property name="errorMessage" expression="json-eval($.errorMessage)"/>
+        </log>
+
+        <!-- Extract error details from response if available -->
+        <property name="errorCodeFromResponse" expression="json-eval($.errorCode)" scope="default" type="STRING"/>
+        <property name="errorMessageFromResponse" expression="json-eval($.errorMessage)" scope="default" type="STRING"/>
+        <property name="httpCodeFromResponse" expression="json-eval($.httpCode)" scope="default" type="STRING"/>
+
+        <!-- Build custom error response -->
+        <payloadFactory media-type="json">
+            <format>
+                {
+                    "code": "$1",
+                    "type": "Consent Validation Failed",
+                    "message": "$2",
+                    "description": "The consent could not be validated. It may be invalid, expired, revoked, or insufficient for this operation."
+                }
+            </format>
+            <args>
+                <arg expression="get-property('errorCodeFromResponse')" evaluator="xml"/>
+                <arg expression="get-property('errorMessageFromResponse')" evaluator="xml"/>
+            </args>
+        </payloadFactory>
+
+        <!-- Set HTTP status code -->
+        <property name="HTTP_SC" value="401" scope="axis2"/>
+
+        <!-- Stop further processing and send response -->
+        <respond/>
+    </else>
+</filter>
