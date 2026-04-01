@@ -64,9 +64,9 @@
         <maven.compiler.target>11</maven.compiler.target>
 
         <!-- WSO2 Versions -->
-        <wso2.carbon.kernel.version>4.10.42.21</wso2.carbon.kernel.version>
-        <carbon.identity.framework.version>7.8.23.73</carbon.identity.framework.version>
-        <carbon.identity.oauth.version>7.0.259.26</carbon.identity.oauth.version>
+        <wso2.carbon.kernel.version>4.10.42</wso2.carbon.kernel.version>
+        <carbon.identity.framework.version>7.8.23</carbon.identity.framework.version>
+        <carbon.identity.oauth.version>7.0.259</carbon.identity.oauth.version>
         <carbon.identity.local.auth.api.version>2.4.0</carbon.identity.local.auth.api.version>
 
         <!-- Dependency Versions -->

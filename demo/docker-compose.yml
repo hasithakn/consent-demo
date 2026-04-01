@@ -64,29 +64,35 @@ services:
       context: ./apim
       dockerfile: Dockerfile
     container_name: consent-apim
+    hostname: api-manager
     ports:
       - "9443:9443"
       - "8243:8243"
     depends_on:
-      is:
-        condition: service_healthy
+      - is
     networks:
-      - consent-network
+      consent-network:
+        aliases:
+          - api-manager
 
   is:
     build:
       context: ./is
       dockerfile: Dockerfile
     container_name: consent-is
+    hostname: identity-server
     ports:
       - "9446:9446"
     healthcheck:
       test: ["CMD", "curl", "-k", "-s", "-o", "/dev/null", "-w", "%{http_code}", "https://localhost:9446/carbon/"]
       interval: 15s
       timeout: 10s
-      retries: 15
+      retries: 20
+      start_period: 120s
     networks:
-      - consent-network
+      consent-network:
+        aliases:
+          - identity-server
 
 volumes:
   mysql-data:

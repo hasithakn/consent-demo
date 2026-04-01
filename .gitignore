@@ -2,6 +2,12 @@
 consent-accelerator-v1/**/target/
 *.class
 
+# Generated TLS certificates (run scripts/generate-certs.sh to create)
+demo/is/wso2carbon.p12
+demo/is/demo.crt
+demo/apim/wso2carbon.p12
+demo/apim/demo.crt
+
 # IDE
 .idea/
 *.iml

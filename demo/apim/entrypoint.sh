@@ -21,4 +21,4 @@ SETUP_DONE_FLAG="/tmp/.apim-setup-done"
 ) &
 
 # Hand off to the real APIM startup script as PID 1
-exec "$APIM_HOME/bin/wso2server.sh"
+exec "$APIM_HOME/bin/api-manager.sh"

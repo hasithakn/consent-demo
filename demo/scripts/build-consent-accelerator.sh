@@ -23,9 +23,11 @@ BUILD_ARTIFACTS_DIR="$REPO_ROOT/is/build-artifacts"
 DROPINS_DIR="$BUILD_ARTIFACTS_DIR/dropins"
 WEBAPPS_DIR="$BUILD_ARTIFACTS_DIR/webapps"
 
+# ── 1. Build the Maven project ────────────────────────────────────────────────
 echo "[consent-accelerator] Building Maven project..."
 mvn clean install -f "$ACCELERATOR_DIR/pom.xml" -DskipTests
 
+# ── 2. Stage artifacts ────────────────────────────────────────────────────────
 echo "[consent-accelerator] Copying artifacts to is/build-artifacts/..."
 mkdir -p "$DROPINS_DIR" "$WEBAPPS_DIR"
 

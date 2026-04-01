@@ -2,7 +2,7 @@
 # APIM one-time setup: import IS cert, register IS KM, import/publish/deploy KYCAPI, upload and attach policies
 set -e
 
-APIM_BASE="https://consent-apim:9443"
+APIM_BASE="https://api-manager:9443"
 IS_HOST="identity-server"
 IS_PORT="9446"
 TRUSTSTORE="/home/wso2carbon/wso2am-4.5.0/repository/resources/security/client-truststore.jks"

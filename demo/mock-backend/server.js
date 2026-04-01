@@ -4,7 +4,7 @@ const PORT = 3002;
 
 // Mock KYC data - person information for Bank KYC by NIN (National Identification Number)
 const kycDatabase = {
-  "NIC-123456": {
+  "NIC123456": {
     person: {
       first_name: "John",
       middle_name: "Michael",
@@ -18,7 +18,7 @@ const kycDatabase = {
       tax_id: "TIN-LK-2019-84523",
       source_of_funds: "Employment Income",
       identifiers: {
-        national_id: "NIC-123456",
+        national_id: "NIC123456",
         passport_number: "N1234567",
         driving_license: "DL-987654"
       },
@@ -43,7 +43,7 @@ const kycDatabase = {
       }
     }
   },
-  "NIC-654321": {
+  "NIC654321": {
     person: {
       first_name: "Jane",
       middle_name: "Elizabeth",
@@ -57,7 +57,7 @@ const kycDatabase = {
       tax_id: "TIN-LK-2020-91247",
       source_of_funds: "Employment Income",
       identifiers: {
-        national_id: "NIC-654321",
+        national_id: "NIC654321",
         passport_number: "N7654321",
         driving_license: "DL-123456"
       },
