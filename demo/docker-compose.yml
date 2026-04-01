@@ -44,6 +44,50 @@ services:
     networks:
       - consent-network
 
+  mock-backend:
+    build:
+      context: ./mock-backend
+      dockerfile: Dockerfile
+    container_name: consent-mock-backend
+    ports:
+      - "3002:3002"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - consent-network
+
+  apim:
+    build:
+      context: ./apim
+      dockerfile: Dockerfile
+    container_name: consent-apim
+    ports:
+      - "9443:9443"
+      - "8243:8243"
+    depends_on:
+      is:
+        condition: service_healthy
+    networks:
+      - consent-network
+
+  is:
+    build:
+      context: ./is
+      dockerfile: Dockerfile
+    container_name: consent-is
+    ports:
+      - "9446:9446"
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-s", "-o", "/dev/null", "-w", "%{http_code}", "https://localhost:9446/carbon/"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+    networks:
+      - consent-network
+
 volumes:
   mysql-data:
 

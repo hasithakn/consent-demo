@@ -1,0 +1,210 @@
+<!-- Consent Enforcement Policy - pure Synapse mediators, no custom jar required.
+     1. Extracts consent_id from the Bearer JWT access token.
+     2. POSTs {"consentId":"..."} to OpenFGC /consents/validate.
+     3. Checks isValid + resource-level permission against the approved purposes.
+     4. On success: restores original request and passes Account-Request-Information header.
+     5. On failure: returns 401/403/500 with a descriptive error body.
+-->
+
+<!-- Save original request state -->
+<property name="originalRequestJsonBody" expression="json-eval($)" scope="default" type="STRING"/>
+<property name="originalAuthorizationHeader" expression="$trp:Authorization"/>
+<property name="originalContentTypeHeader" expression="$trp:Content-Type"/>
+<property name="originalAcceptHeader" expression="$trp:Accept"/>
+<property name="api.resource.path" expression="get-property('api.ut.resource')" scope="default" type="STRING"/>
+
+<!-- Extract consent_id from the Bearer JWT payload (base64url decode, no crypto verify needed here) -->
+<script language="js">
+<![CDATA[
+    var authHeader = mc.getProperty("originalAuthorizationHeader");
+    var consentId = "";
+    try {
+        if (authHeader && authHeader.indexOf("Bearer ") === 0) {
+            var token = authHeader.substring(7).trim();
+            var parts = token.split(".");
+            if (parts.length >= 2) {
+                var b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+                while (b64.length % 4 !== 0) { b64 += "="; }
+                var decoded = java.util.Base64.getDecoder().decode(b64);
+                var claims = JSON.parse(new java.lang.String(decoded, "UTF-8"));
+                consentId = claims["consent_id"] || claims["consentId"] || "";
+            }
+        }
+    } catch (e) {
+        java.lang.System.out.println("[consent-enforcement] Failed to decode JWT: " + e);
+    }
+    mc.setProperty("extractedConsentId", consentId);
+    java.lang.System.out.println("[consent-enforcement] consent_id: " + consentId);
+]]>
+</script>
+
+<!-- Reject immediately if no consent_id in token -->
+<filter xpath="not(boolean($ctx:extractedConsentId))">
+    <then>
+        <payloadFactory media-type="json">
+            <format>{"code":"Unauthorized","type":"Missing Consent","message":"No consent_id found in the access token","description":"The access token does not contain a consent_id claim."}</format>
+        </payloadFactory>
+        <property name="HTTP_SC" value="401" scope="axis2"/>
+        <respond/>
+    </then>
+</filter>
+
+<!-- Build the JSON validation request -->
+<payloadFactory media-type="json">
+    <format>{"consentId":"$1"}</format>
+    <args>
+        <arg expression="$ctx:extractedConsentId"/>
+    </args>
+</payloadFactory>
+
+<!-- Set headers for the consent validation call -->
+<header name="Content-Type" scope="transport" value="application/json"/>
+<header name="Accept"        scope="transport" value="application/json"/>
+<header name="org-id"        scope="transport" value="DEMO-ORG-001"/>
+<property name="messageType" scope="axis2" value="application/json"/>
+<property name="ContentType" scope="axis2" value="application/json"/>
+
+<!-- Save REST_URL_POSTFIX so it is not forwarded to OpenFGC -->
+<property name="savedRestUrlPostfix" expression="get-property('axis2', 'REST_URL_POSTFIX')" scope="default" type="STRING"/>
+<property name="REST_URL_POSTFIX" scope="axis2" action="remove"/>
+
+<!-- Call OpenFGC consent validation (blocking) -->
+<call blocking="true">
+    <endpoint>
+        <http method="POST" uri-template="http://openfgc:3000/api/v1/consents/validate"/>
+    </endpoint>
+</call>
+
+<!-- Reset direction flags and restore postfix -->
+<property name="RESPONSE"       scope="default" action="remove"/>
+<property name="NO_ENTITY_BODY" scope="axis2"   action="remove"/>
+<filter xpath="boolean($ctx:savedRestUrlPostfix)">
+    <then>
+        <property name="REST_URL_POSTFIX" expression="$ctx:savedRestUrlPostfix" scope="axis2"/>
+    </then>
+</filter>
+<property name="messageType" scope="axis2" value="application/json"/>
+
+<!-- Remove headers used for the validation call -->
+<header name="Authorization" scope="transport" action="remove"/>
+<header name="Content-Type"  scope="transport" action="remove"/>
+<header name="Accept"        scope="transport" action="remove"/>
+
+<!-- Restore original request headers -->
+<filter xpath="boolean($ctx:originalAuthorizationHeader)">
+    <then>
+        <header name="Authorization" scope="transport" expression="$ctx:originalAuthorizationHeader"/>
+    </then>
+</filter>
+<filter xpath="boolean($ctx:originalContentTypeHeader)">
+    <then>
+        <header name="Content-Type" scope="transport" expression="$ctx:originalContentTypeHeader"/>
+    </then>
+</filter>
+<filter xpath="boolean($ctx:originalAcceptHeader)">
+    <then>
+        <header name="Accept" scope="transport" expression="$ctx:originalAcceptHeader"/>
+    </then>
+</filter>
+
+<!-- Extract top-level fields from validation response -->
+<property name="isValid"            expression="json-eval($.isValid)"            scope="default" type="STRING"/>
+<property name="consentInformation" expression="json-eval($.consentInformation)" scope="default" type="STRING"/>
+
+<!-- Guard: unexpected / empty response from validation service -->
+<filter xpath="not($ctx:isValid)">
+    <then>
+        <payloadFactory media-type="json">
+            <format>{"code":"Internal Server Error","type":"Consent Enforcement Error","message":"Unexpected error from the consent validation service","description":"The validation service did not return a valid response."}</format>
+        </payloadFactory>
+        <property name="HTTP_SC" value="500" scope="axis2"/>
+        <respond/>
+    </then>
+</filter>
+
+<!-- Main branch: isValid true / false -->
+<filter source="$ctx:isValid" regex="true">
+    <then>
+        <property name="consentPurposes" expression="json-eval($.consentInformation.purposes)" scope="default" type="STRING"/>
+        <property name="electedResource" expression="$ctx:api.resource.path" scope="default" type="STRING"/>
+
+        <!-- Walk approved purposes and collect permitted jsonPaths for the requested resource -->
+        <script language="js">
+        <![CDATA[
+            var purposesStr     = mc.getProperty("consentPurposes");
+            var electedResource = mc.getProperty("electedResource");
+            var hasPermission   = false;
+            var approvedPaths   = [];
+
+            try {
+                if (purposesStr && electedResource) {
+                    var purposes = JSON.parse(purposesStr);
+                    for (var i = 0; i < purposes.length; i++) {
+                        var elements = purposes[i].elements;
+                        if (!elements) continue;
+                        for (var j = 0; j < elements.length; j++) {
+                            var el = elements[j];
+                            if (el.isUserApproved === true && el.properties && el.properties.resourcePath) {
+                                var pattern = el.properties.resourcePath.replace(/\{[^}]+\}/g, "[^/]+");
+                                if (new RegExp("^" + pattern + "$").test(electedResource)) {
+                                    hasPermission = true;
+                                    if (el.properties.jsonPath) {
+                                        approvedPaths.push(el.properties.jsonPath);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                java.lang.System.out.println("[consent-enforcement] Error parsing purposes: " + e);
+            }
+
+            mc.setProperty("hasResourcePermission", hasPermission.toString());
+            mc.setProperty("approvedJsonPaths", JSON.stringify(approvedPaths));
+            java.lang.System.out.println("[consent-enforcement] hasPermission=" + hasPermission + " paths=" + JSON.stringify(approvedPaths));
+        ]]>
+        </script>
+
+        <filter source="$ctx:hasResourcePermission" regex="true">
+            <then>
+                <!-- Restore original request body for the backend call -->
+                <payloadFactory media-type="json">
+                    <format>$1</format>
+                    <args>
+                        <arg expression="$ctx:originalRequestJsonBody"/>
+                    </args>
+                </payloadFactory>
+                <!-- Pass consent info to backend as a header for auditing / response filtering -->
+                <filter xpath="boolean($ctx:consentInformation)">
+                    <then>
+                        <header name="Account-Request-Information" scope="transport" expression="$ctx:consentInformation"/>
+                    </then>
+                </filter>
+            </then>
+            <else>
+                <payloadFactory media-type="json">
+                    <format>{"code":"Forbidden","type":"Insufficient Permissions","message":"The consent does not include permission to access this resource","description":"No approved consent purposes found for resource: $1"}</format>
+                    <args>
+                        <arg expression="get-property('electedResource')" evaluator="xml"/>
+                    </args>
+                </payloadFactory>
+                <property name="HTTP_SC" value="403" scope="axis2"/>
+                <respond/>
+            </else>
+        </filter>
+    </then>
+    <else>
+        <property name="errorCode"    expression="json-eval($.errorCode)"    scope="default" type="STRING"/>
+        <property name="errorMessage" expression="json-eval($.errorMessage)" scope="default" type="STRING"/>
+        <payloadFactory media-type="json">
+            <format>{"code":"$1","type":"Consent Validation Failed","message":"$2","description":"The consent could not be validated. It may be invalid, expired, revoked, or insufficient for this operation."}</format>
+            <args>
+                <arg expression="get-property('errorCode')"    evaluator="xml"/>
+                <arg expression="get-property('errorMessage')" evaluator="xml"/>
+            </args>
+        </payloadFactory>
+        <property name="HTTP_SC" value="401" scope="axis2"/>
+        <respond/>
+    </else>
+</filter>

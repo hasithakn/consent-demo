@@ -1,0 +1,130 @@
+[server]
+hostname = "localhost"
+node_ip = "127.0.0.1"
+base_path = "https://$ref{server.hostname}:${carbon.management.port}"
+offset = 3
+
+[super_admin]
+username = "admin"
+password = "admin"
+create_admin_account = true
+
+[user_store]
+type = "database_unique_id"
+
+[database.identity_db]
+type = "h2"
+url = "jdbc:h2:./repository/database/WSO2IDENTITY_DB;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=60000"
+username = "wso2carbon"
+password = "wso2carbon"
+
+[database.shared_db]
+type = "h2"
+url = "jdbc:h2:./repository/database/WSO2SHARED_DB;DB_CLOSE_ON_EXIT=FALSE;LOCK_TIMEOUT=60000"
+username = "wso2carbon"
+password = "wso2carbon"
+
+[keystore.primary]
+file_name = "wso2carbon.p12"
+password = "wso2carbon"
+type="PKCS12"
+
+[truststore]
+file_name="client-truststore.p12"
+password="wso2carbon"
+type="PKCS12"
+
+[account_recovery.endpoint.auth]
+hash= "66cd9688a2ae068244ea01e70f0e230f5623b7fa4cdecb65070a09ec06452262"
+
+[identity.auth_framework.endpoint]
+app_password= "dashboard"
+
+[oauth]
+authorize_all_scopes = true
+allowed_scopes = ["consent.*"]
+
+[[resource.access_control]]
+context="(.*)/scim2/Me"
+secure=true
+http_method="GET"
+cross_tenant=true
+permissions=[]
+scopes=[]
+
+[[resource.access_control]]
+context="(.*)/oauth2/ciba(.*)"
+secure="false"
+http_method="all"
+
+[[event_listener]]
+id = "token_revocation"
+type = "org.wso2.carbon.identity.core.handler.AbstractIdentityHandler"
+name = "org.wso2.is.notification.ApimOauthEventInterceptor"
+order = 1
+[event_listener.properties]
+notification_endpoint = "https://localhost:9443/internal/data/v1/notify"
+username = "${admin.username}"
+password = "${admin.password}"
+'header.X-WSO2-KEY-MANAGER' = "WSO2-IS"
+
+[[resource.access_control]]
+context = "(.*)/fs/authenticationendpoint/(.*)"
+http_method = "all"
+secure = "false"
+
+[oauth.endpoints.v2]
+oauth2_consent_page = "${carbon.protocol}://localhost:${carbon.management.port}/fs/authenticationendpoint/oauth2_authz.do"
+oidc_consent_page = "${carbon.protocol}://localhost:${carbon.management.port}/fs/authenticationendpoint/oauth2_consent.do"
+
+[[oauth.custom_response_type]]
+class = "com.wso2.consent.accelerator.response.handler.ConsentHybridResponseTypeHandler"
+name = "code id_token"
+
+[[oauth.custom_response_type]]
+name = "cibaAuthCode"
+class = "com.wso2.consent.accelerator.response.handler.OBCibaResponseTypeHandler"
+validator = "com.wso2.consent.accelerator.response.validator.OBCibaResponseTypeValidator"
+
+[oauth.grant_type.refresh_token]
+enable = true
+grant_handler = "com.wso2.consent.accelerator.grant.handler.FSRefreshGrantHandler"
+
+[oauth.grant_type.authorization_code]
+enable = true
+grant_handler = "com.wso2.consent.accelerator.grant.handler.FSAuthorizationCodeGrantHandler"
+
+[[oauth.custom_grant_type]]
+name="urn:openid:params:grant-type:ciba"
+grant_handler="com.wso2.consent.accelerator.grant.handler.OBCibaGrantHandler"
+grant_validator="org.wso2.carbon.identity.oauth.ciba.grant.CibaGrantValidator"
+
+[oauth.custom_grant_type.properties]
+IdTokenAllowed=true
+
+[oauth.oidc]
+enable_claims_separation_for_access_tokens = false
+enable_hybrid_flow_app_level_validation = false
+
+[oauth.oidc.fapi]
+enable_validation = false
+
+[oauth.oidc.request_object]
+signing_algorithms = ["SHA256withRSA", "PS256", "ES256"]
+
+[oauth.oidc.token_endpoint]
+signing_algorithms = ["SHA256withRSA", "PS256", "ES256"]
+
+[oauth.oidc.id_token]
+signing_algorithms = ["SHA256withRSA", "PS256", "ES256"]
+
+[oauth.oidc.extensions]
+claim_callback_handler = "com.wso2.consent.accelerator.claims.FSDefaultOIDCClaimsCallbackHandler"
+ciba_request_object_validator="com.wso2.consent.accelerator.request.OBCIBARequestObjectValidationExtension"
+
+[oauth.private_key_jwt]
+prevent_token_reuse = true
+
+[authentication.authenticator.sample_authenticator]
+name = "SampleLocalAuthenticator"
+enable = true

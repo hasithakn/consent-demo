@@ -1,0 +1,130 @@
+<!--
+ ~ Copyright (c) 2025, WSO2 LLC. (https://www.wso2.com).
+ ~
+ ~ WSO2 LLC. licenses this file to you under the Apache License,
+ ~ Version 2.0 (the "License"); you may not use this file except
+ ~ in compliance with the License.
+ ~ You may obtain a copy of the License at
+ ~
+ ~     http://www.apache.org/licenses/LICENSE-2.0
+ ~
+ ~ Unless required by applicable law or agreed to in writing,
+ ~ software distributed under the License is distributed on an
+ ~ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ ~ KIND, either express or implied. See the License for the
+ ~ specific language governing permissions and limitations
+ ~ under the License.
+ -->
+
+<!-- Consent Response Filter Policy - Applied in Response Flow -->
+<!-- This policy filters the backend response based on approved consent purposes -->
+
+<!-- Log the backend response received -->
+<log level="custom">
+    <property name="Message" value="Consent Response Filter - Backend API response received"/>
+    <property name="BackendResponse" expression="$body"/>
+    <property name="ApprovedJsonPaths" expression="$ctx:approvedJsonPaths"/>
+</log>
+
+<!-- Check if we have approved jsonPaths from the request flow -->
+<filter xpath="boolean($ctx:approvedJsonPaths)">
+    <then>
+        <!-- Store backend response for filtering -->
+        <property name="backendResponse" expression="json-eval($)" scope="default" type="STRING"/>
+
+        <!-- Filter the response based on approved jsonPaths -->
+        <script language="js">
+            <![CDATA[
+                var backendResponseStr = mc.getProperty("backendResponse");
+                var approvedJsonPathsStr = mc.getProperty("approvedJsonPaths");
+
+                java.lang.System.out.println("[RESPONSE FILTER] Filtering backend response");
+                java.lang.System.out.println("[RESPONSE FILTER] Backend response: " + backendResponseStr);
+                java.lang.System.out.println("[RESPONSE FILTER] Approved jsonPaths: " + approvedJsonPathsStr);
+
+                try {
+                    if (backendResponseStr && approvedJsonPathsStr) {
+                        var backendData = JSON.parse(backendResponseStr);
+                        var approvedPaths = JSON.parse(approvedJsonPathsStr);
+                        var filteredResponse = {};
+
+                        // Helper function to get value from object using jsonPath (simplified implementation)
+                        function getValueByPath(obj, path) {
+                            // Remove $. prefix if present
+                            path = path.replace(/^\$\./, "");
+                            var parts = path.split(".");
+                            var current = obj;
+                            
+                            for (var i = 0; i < parts.length; i++) {
+                                if (current && current.hasOwnProperty(parts[i])) {
+                                    current = current[parts[i]];
+                                } else {
+                                    return undefined;
+                                }
+                            }
+                            return current;
+                        }
+
+                        // Helper function to set value in object using jsonPath
+                        function setValueByPath(obj, path, value) {
+                            path = path.replace(/^\$\./, "");
+                            var parts = path.split(".");
+                            var current = obj;
+                            
+                            for (var i = 0; i < parts.length - 1; i++) {
+                                if (!current[parts[i]]) {
+                                    current[parts[i]] = {};
+                                }
+                                current = current[parts[i]];
+                            }
+                            current[parts[parts.length - 1]] = value;
+                        }
+
+                        // Extract only approved attributes
+                        for (var i = 0; i < approvedPaths.length; i++) {
+                            var jsonPath = approvedPaths[i];
+                            var value = getValueByPath(backendData, jsonPath);
+                            
+                            java.lang.System.out.println("[RESPONSE FILTER] Processing path: " + jsonPath + ", value: " + JSON.stringify(value));
+                            
+                            if (value !== undefined) {
+                                setValueByPath(filteredResponse, jsonPath, value);
+                            }
+                        }
+
+                        java.lang.System.out.println("[RESPONSE FILTER] Filtered response: " + JSON.stringify(filteredResponse));
+                        mc.setProperty("filteredResponse", JSON.stringify(filteredResponse));
+
+                    } else {
+                        // If no filtering data available, pass through the original response
+                        java.lang.System.out.println("[RESPONSE FILTER] No filtering data, passing through original response");
+                        mc.setProperty("filteredResponse", backendResponseStr);
+                    }
+                } catch (e) {
+                    java.lang.System.out.println("[RESPONSE FILTER ERROR] Exception in response filtering: " + e.toString());
+                    // On error, return empty object to avoid leaking data
+                    mc.setProperty("filteredResponse", "{}");
+                }
+            ]]>
+        </script>
+
+        <!-- Set the filtered response as the payload -->
+        <payloadFactory media-type="json">
+            <format>$1</format>
+            <args>
+                <arg expression="$ctx:filteredResponse"/>
+            </args>
+        </payloadFactory>
+
+        <log level="custom">
+            <property name="Message" value="Consent Response Filter - Returning filtered response to client"/>
+            <property name="FilteredPayload" expression="$body"/>
+        </log>
+    </then>
+    <else>
+        <!-- No approved paths found, this shouldn't happen if request flow validation passed -->
+        <log level="custom">
+            <property name="Message" value="WARNING: No approved jsonPaths found in message context, passing through response unfiltered"/>
+        </log>
+    </else>
+</filter>

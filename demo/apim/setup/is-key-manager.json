@@ -1,0 +1,45 @@
+{
+  "name": "WSO2 Identity Server",
+  "displayName": "WSO2 IS 7.1.0",
+  "type": "WSO2-IS",
+  "description": "WSO2 Identity Server 7.1.0 as Key Manager",
+  "wellKnownEndpoint": "",
+  "issuer": "https://identity-server:9446/oauth2/token",
+  "introspectionEndpoint": "https://identity-server:9446/oauth2/introspect",
+  "clientRegistrationEndpoint": "https://identity-server:9446/api/identity/oauth2/dcr/v1.1/register",
+  "tokenEndpoint": "https://identity-server:9446/oauth2/token",
+  "displayTokenEndpoint": "https://localhost:9446/oauth2/token",
+  "revokeEndpoint": "https://identity-server:9446/oauth2/revoke",
+  "displayRevokeEndpoint": "https://localhost:9446/oauth2/revoke",
+  "userInfoEndpoint": "https://identity-server:9446/oauth2/userinfo",
+  "authorizeEndpoint": "https://localhost:9446/oauth2/authorize",
+  "scopeManagementEndpoint": "https://identity-server:9446/api/identity/oauth2/v1.0/scopes",
+  "certificates": {
+    "type": "JWKS",
+    "value": "https://identity-server:9446/oauth2/jwks"
+  },
+  "enabled": true,
+  "enableTokenGeneration": true,
+  "enableTokenEncryption": false,
+  "enableTokenHashing": false,
+  "enableMapOAuthConsumerApps": true,
+  "enableOAuthAppCreation": true,
+  "enableSelfValidationJWT": true,
+  "availableGrantTypes": [
+    "client_credentials",
+    "password",
+    "refresh_token",
+    "authorization_code",
+    "urn:openid:params:grant-type:ciba"
+  ],
+  "tokenType": "DIRECT",
+  "additionalProperties": {
+    "Username": "admin",
+    "Password": "admin",
+    "self_validate_jwt": true
+  },
+  "permissions": {
+    "permissionType": "PUBLIC",
+    "roles": []
+  }
+}

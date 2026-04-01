@@ -1,0 +1,15 @@
+type: operation_policy_specification
+version: v4.6.0
+data:
+  category: Mediation
+  name: consentEnforcementPolicy
+  version: v1
+  displayName: Consent Enforcement Policy
+  description: "Validates consent by calling OpenFGC consent validation endpoint and filters response based on approved purposes"
+  applicableFlows:
+    - request
+  supportedGateways:
+    - Synapse
+  supportedApiTypes:
+    - HTTP
+  policyAttributes: []
