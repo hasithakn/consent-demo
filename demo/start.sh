@@ -110,21 +110,39 @@ until curl -sk -o /dev/null -w "%{http_code}" \
 done
 echo " APIM ready."
 
-# ── 4. Populate OpenFGC ──────────────────────────────────────────────────────
+# ── Wait for IS background setup.sh to finish ────────────────────────────────
+# setup.sh runs in the background after IS boots and logs credentials when done.
+echo "[start] Waiting for IS app setup to complete..."
+until docker logs consent-is 2>&1 | grep -q '\[is-setup\].*CLIENT_ID.*='; do
+  printf "."
+  sleep 5
+done
+echo " IS setup complete."
+
+# ── Extract credentials from IS container logs ────────────────────────────────
+CLIENT_ID=$(docker logs consent-is 2>&1 \
+  | grep '\[is-setup\].*CLIENT_ID' | tail -1 \
+  | sed 's/.*= *//' | tr -d '[:space:]')
+CLIENT_SECRET=$(docker logs consent-is 2>&1 \
+  | grep '\[is-setup\].*CLIENT_SECRET' | tail -1 \
+  | sed 's/.*= *//' | tr -d '[:space:]')
+
+if [ -n "$CLIENT_ID" ]; then
+  echo "[start] Writing IS app credentials to .env..."
+  cat > "$SCRIPT_DIR/.env" <<EOF
+BANK_CLIENT_ID=${CLIENT_ID}
+BANK_CLIENT_SECRET=${CLIENT_SECRET}
+EOF
+  echo "[start] Restarting bank-portal with updated credentials..."
+  docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-deps --no-build bank-portal
+else
+  echo "[start] WARNING: Could not extract credentials from IS logs — check 'docker logs consent-is'"
+fi
+
+# ── 5. Populate OpenFGC ──────────────────────────────────────────────────────
 echo ""
 echo "[start] Step 5/5 — Populate OpenFGC with KYC data"
 bash "$SCRIPT_DIR/scripts/clean-and-populate-openfgc.sh"
-
-# ── Resolve app credentials for summary ──────────────────────────────────────
-APP_ID=$(curl -sk -u admin:admin "https://localhost:9446/api/server/v1/applications?limit=50" \
-  | python3 -c "import sys,json; apps=json.load(sys.stdin).get('applications',[]); ids=[a['id'] for a in apps if a['name']=='National Bank KYC Portal']; print(ids[0] if ids else '')" 2>/dev/null)
-CLIENT_ID=""
-CLIENT_SECRET=""
-if [ -n "$APP_ID" ]; then
-  OIDC=$(curl -sk -u admin:admin "https://localhost:9446/api/server/v1/applications/${APP_ID}/inbound-protocols/oidc")
-  CLIENT_ID=$(echo "$OIDC"    | python3 -c "import sys,json; print(json.load(sys.stdin).get('clientId',''))"     2>/dev/null)
-  CLIENT_SECRET=$(echo "$OIDC" | python3 -c "import sys,json; print(json.load(sys.stdin).get('clientSecret',''))" 2>/dev/null)
-fi
 
 # ── Done ─────────────────────────────────────────────────────────────────────
 echo ""
@@ -136,9 +154,11 @@ echo "  WSO2 APIM Console https://localhost:9443/publisher (admin/admin)"
 echo "  APIM Gateway      https://localhost:8243"
 echo "  OpenFGC           http://localhost:3000/health"
 echo "  Mock KYC Backend  http://localhost:3002/health"
+echo "  Bank Portal       http://localhost:3010"
+echo "  Citizen App       http://localhost:3010/citizen/"
 echo ""
 echo "  App: National Bank KYC Portal"
-echo "  Client ID     : ${CLIENT_ID:-n/a}"
-echo "  Client Secret : ${CLIENT_SECRET:-n/a}"
+echo "  Client ID     : ${CLIENT_ID:-n/a (resolves at bank-portal startup)}"
+echo "  Client Secret : ${CLIENT_SECRET:-n/a (resolves at bank-portal startup)}"
 echo "════════════════════════════════════════════════════════════"
 echo ""

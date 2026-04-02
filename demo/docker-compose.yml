@@ -94,6 +94,30 @@ services:
         aliases:
           - identity-server
 
+  bank-portal:
+    build:
+      context: .
+      dockerfile: bank-portal/Dockerfile
+    container_name: consent-bank-portal
+    ports:
+      - "3010:3010"
+      - "3011:3010"
+    environment:
+      APIM_GW: https://api-manager:8243
+      IS_BASE: https://identity-server:9446
+      IS_PUBLIC_BASE: https://localhost:9446
+      OPENFGC_BASE: http://openfgc:3000
+      REDIRECT_URI: http://localhost:3011/auth-callback.html
+      CLIENT_ID: ${BANK_CLIENT_ID:-}
+      CLIENT_SECRET: ${BANK_CLIENT_SECRET:-}
+    depends_on:
+      - is
+      - apim
+      - openfgc
+    networks:
+      - consent-network
+
+
 volumes:
   mysql-data:
 

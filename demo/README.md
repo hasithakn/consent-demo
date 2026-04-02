@@ -84,6 +84,8 @@ This wipes the database and recreates all seed data. Run it any time you want a 
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
+| **Bank Portal** | `http://localhost:3010` | — |
+| **Citizen App** | `http://localhost:3010/citizen/` | — |
 | WSO2 IS Console | `https://localhost:9446/console` | admin / admin |
 | WSO2 APIM Console | `https://localhost:9443/publisher` | admin / admin |
 | APIM Gateway | `https://localhost:8243` | — |

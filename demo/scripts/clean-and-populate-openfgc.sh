@@ -47,7 +47,7 @@ if ! docker volume rm "$VOLUME_NAME" 2>&1; then
 fi
 
 echo "[clean] Starting mysql and openfgc..."
-docker compose -f "$COMPOSE_DIR/docker-compose.yml" up -d mysql openfgc
+docker compose -f "$COMPOSE_DIR/docker-compose.yml" up -d --no-deps mysql openfgc
 
 # ═════════════════════════════════════════════════════════════════════════════
 # WAIT FOR OPENFGC
