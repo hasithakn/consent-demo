@@ -1,80 +1,102 @@
-
 ## Prerequisites
 
 - Docker & Docker Compose
 - Java 11+ and Maven 3.6+ (for building the Consent Accelerator)
-- `curl`, `unzip` (for the OpenFGC setup script)
+- `curl`, `unzip`
 
 ---
 
-## Setup
+## Quick Start
 
-### 1. Prepare OpenFGC
+One command to build and start the full demo:
 
-Downloads the OpenFGC release binary from GitHub and extracts it (including the MySQL schema) into `openfgc/release/server/`.
+```bash
+bash start.sh
+```
+
+On first run this takes **3–5 minutes** (IS and APIM startup). Subsequent runs with images already built are faster.
+
+| Flag | Effect |
+|------|--------|
+| _(none)_ | Full setup — downloads, builds, starts, seeds |
+| `--no-build` | Skip Maven build (use existing `is/build-artifacts/`) |
+| `--clean` | Remove all generated files, stop containers, delete volumes — then exit |
+
+**Clean everything and start fresh:**
+
+```bash
+bash start.sh --clean && bash start.sh
+```
+
+---
+
+## Manual Steps (what `start.sh` does)
+
+If you prefer to run each step individually:
+
+### 1. Download OpenFGC release
+
+Downloads the OpenFGC binary and extracts the MySQL schema needed by Docker Compose.
 
 ```bash
 bash scripts/setup-openfgc.sh
 ```
 
-### 2. Build the Consent Accelerator
+### 2. Build Consent Accelerator
 
-Compiles the Maven project and stages the build artifacts for the IS Docker image.
+Compiles the Maven project and stages JARs + WAR into `is/build-artifacts/` for the IS Docker image.
 
 ```bash
 bash scripts/build-consent-accelerator.sh
 ```
 
-Artifacts are placed in `is/build-artifacts/` and picked up by the IS Dockerfile at build time.
+### 3. Generate TLS certificates
 
-### 3. Start All Services
-
-Builds and starts MySQL, OpenFGC, Mock Backend, WSO2 IS, and WSO2 API Manager.
+Generates a shared keypair covering all service hostnames and places `wso2carbon.p12` + `demo.crt` into `is/` and `apim/` build contexts. Required before `docker compose build`.
 
 ```bash
-docker compose up -d
+bash scripts/generate-certs.sh
 ```
 
-> **First run:** IS and APIM take 2–3 minutes to fully start. APIM will not start until IS is healthy. The `setup.sh` inside APIM runs automatically on first start — it imports the IS TLS certificate, registers IS as the Key Manager, imports and publishes the KYC API, and attaches the consent enforcement policies.
+> Skip this step if `is/wso2carbon.p12` already exists — `start.sh` does this automatically.
 
-### 4. Populate OpenFGC Data
+### 4. Start all Docker services
 
-Once the stack is running, clean and populate OpenFGC with KYC consent elements and a sample purpose:
+```bash
+docker compose up -d --build
+```
+
+> IS and APIM take 2–3 minutes to fully start. The `setup.sh` inside each container runs automatically on first start — it configures IS as the Key Manager, imports and publishes the KYC API, and attaches the consent enforcement policies.
+
+### 5. Populate OpenFGC
+
+Once the stack is running, populate OpenFGC with the 13 KYC consent elements and sample purpose:
 
 ```bash
 bash scripts/clean-and-populate-openfgc.sh
 ```
 
-This stops mysql and openfgc, wipes the database, restarts them, then creates 13 KYC consent elements and the `kyc_verification_purpose` under org `DEMO-ORG-001`. Run this any time you want a clean slate.
+This wipes the database and recreates all seed data. Run it any time you want a clean slate.
 
-### 5. Verify Services
+---
 
-| Service | URL | Notes |
-|---------|-----|-------|
-| OpenFGC | `http://localhost:3000/health` | Consent management server |
-| Mock KYC Backend | `http://localhost:3002/health` | Mock bank data API |
-| WSO2 IS | `https://localhost:9446/carbon` | Identity Server (admin/admin) |
-| WSO2 APIM | `https://localhost:9443/carbon` | API Manager (admin/admin) |
-| APIM Gateway | `https://localhost:8243` | API invocation endpoint |
+## Service URLs
 
-```bash
-# OpenFGC health
-curl http://localhost:3000/health
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| WSO2 IS Console | `https://localhost:9446/console` | admin / admin |
+| WSO2 APIM Console | `https://localhost:9443/publisher` | admin / admin |
+| APIM Gateway | `https://localhost:8243` | — |
+| OpenFGC | `http://localhost:3000/health` | — |
+| Mock KYC Backend | `http://localhost:3002/health` | — |
 
-# Mock backend health
-curl http://localhost:3002/health
+---
 
-# List consent elements (OpenFGC)
-curl http://localhost:3000/api/v1/consent-elements -H "org-id: DEMO-ORG-001"
-```
-
-### 6. Tear Down
+## Tear Down
 
 ```bash
-docker compose down
-
-# To also remove the MySQL data volume:
-docker compose down -v
+docker compose down          # stop and remove containers
+docker compose down -v       # also remove MySQL data volume
 ```
 
 ---
@@ -83,11 +105,6 @@ docker compose down -v
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OPENFGC_VERSION` | `0.2.0` | Release version to download |
-| `OPENFGC_DB_HOSTNAME` | `127.0.0.1` | MySQL host (local run only) |
-| `OPENFGC_DB_PORT` | `3306` | MySQL port |
-| `OPENFGC_DB_NAME` | `consent_mgt` | Database name |
-| `OPENFGC_DB_USER` | `root` | MySQL user |
-| `OPENFGC_DB_PASSWORD` | `root123` | MySQL password |
-| `MYSQL_ROOT_PASSWORD` | `root123` | MySQL root password (Docker) |
-
+| `OPENFGC_VERSION` | `0.2.0` | OpenFGC release version to download |
+| `MYSQL_ROOT_PASSWORD` | `root123` | MySQL root password |
+| `MYSQL_DATABASE` | `consent_mgt` | Database name |
