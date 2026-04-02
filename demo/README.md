@@ -37,7 +37,17 @@ docker compose up -d
 
 > **First run:** IS and APIM take 2–3 minutes to fully start. APIM will not start until IS is healthy. The `setup.sh` inside APIM runs automatically on first start — it imports the IS TLS certificate, registers IS as the Key Manager, imports and publishes the KYC API, and attaches the consent enforcement policies.
 
-### 4. Verify Services
+### 4. Populate OpenFGC Data
+
+Once the stack is running, clean and populate OpenFGC with KYC consent elements and a sample purpose:
+
+```bash
+bash scripts/clean-and-populate-openfgc.sh
+```
+
+This stops mysql and openfgc, wipes the database, restarts them, then creates 13 KYC consent elements and the `kyc_verification_purpose` under org `DEMO-ORG-001`. Run this any time you want a clean slate.
+
+### 5. Verify Services
 
 | Service | URL | Notes |
 |---------|-----|-------|
@@ -58,7 +68,7 @@ curl http://localhost:3002/health
 curl http://localhost:3000/api/v1/consent-elements -H "org-id: DEMO-ORG-001"
 ```
 
-### 5. Tear Down
+### 6. Tear Down
 
 ```bash
 docker compose down

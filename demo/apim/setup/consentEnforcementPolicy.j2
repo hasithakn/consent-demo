@@ -12,26 +12,18 @@
 <property name="originalContentTypeHeader" expression="$trp:Content-Type"/>
 <property name="originalAcceptHeader" expression="$trp:Accept"/>
 <property name="api.resource.path" expression="get-property('api.ut.resource')" scope="default" type="STRING"/>
-
-<!-- Extract consent_id from the Bearer JWT payload (base64url decode, no crypto verify needed here) -->
+<!-- Extract consent_id from jwt_token_claims (populated by APIM after JWT validation) -->
 <script language="js">
 <![CDATA[
-    var authHeader = mc.getProperty("originalAuthorizationHeader");
     var consentId = "";
     try {
-        if (authHeader && authHeader.indexOf("Bearer ") === 0) {
-            var token = authHeader.substring(7).trim();
-            var parts = token.split(".");
-            if (parts.length >= 2) {
-                var b64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-                while (b64.length % 4 !== 0) { b64 += "="; }
-                var decoded = java.util.Base64.getDecoder().decode(b64);
-                var claims = JSON.parse(new java.lang.String(decoded, "UTF-8"));
-                consentId = claims["consent_id"] || claims["consentId"] || "";
-            }
+        var claims = mc.getProperty("jwt_token_claims");
+        if (claims) {
+            var v = claims.get("consent_id");
+            if (v) { consentId = String(v); }
         }
     } catch (e) {
-        java.lang.System.out.println("[consent-enforcement] Failed to decode JWT: " + e);
+        java.lang.System.out.println("[consent-enforcement] claim extraction error: " + e);
     }
     mc.setProperty("extractedConsentId", consentId);
     java.lang.System.out.println("[consent-enforcement] consent_id: " + consentId);

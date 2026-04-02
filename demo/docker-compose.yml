@@ -61,8 +61,8 @@ services:
 
   apim:
     build:
-      context: ./apim
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apim/Dockerfile
     container_name: consent-apim
     hostname: api-manager
     ports:
@@ -77,8 +77,8 @@ services:
 
   is:
     build:
-      context: ./is
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: is/Dockerfile
     container_name: consent-is
     hostname: identity-server
     ports:
