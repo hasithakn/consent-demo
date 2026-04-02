@@ -11,7 +11,7 @@
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Government Consent Portal</title>
+    <title>Digital Locker</title>
     <link rel="icon" href="images/favicon.png" type="image/x-icon"/>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -152,9 +152,9 @@
 <body>
     <div class="consent-wrapper">
         <div class="consent-header">
-            <span class="icon">&#x1F6E1;&#xFE0F;</span>
-            <h1>Government Consent Portal</h1>
-            <p class="subtitle">Secure Data Authorization</p>
+            <span class="icon">&#x1F5C4;&#xFE0F;</span>
+            <h1>Digital Locker</h1>
+            <p class="subtitle">Citizen Consent Management</p>
         </div>
 
         <div class="consent-card">
@@ -182,7 +182,7 @@
         </div>
 
         <div class="consent-footer">
-            &copy; Government Consent Portal <script>document.write(new Date().getFullYear());</script>
+            &copy; Digital Locker <script>document.write(new Date().getFullYear());</script>
         </div>
     </div>
 

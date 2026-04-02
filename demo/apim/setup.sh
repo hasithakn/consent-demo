@@ -63,6 +63,23 @@ else
   echo "[setup] Resident Key Manager not found, skipping."
 fi
 
+# ── 2c. Wait for IS Key Manager to be active ──────────────────────────────────
+echo "[setup] Waiting for IS Key Manager to become active in APIM..."
+for i in $(seq 1 30); do
+  KM_ENABLED=$(curl -sk -u admin:admin "${APIM_BASE}/api/am/admin/v4/key-managers" \
+    | python3 -c "import sys,json; kms=json.load(sys.stdin).get('list',[]); enabled=[k for k in kms if k.get('name')=='ISKM' and k.get('enabled',False)]; print('yes' if enabled else 'no')" 2>/dev/null)
+  if [ "$KM_ENABLED" = "yes" ]; then
+    echo "[setup] IS Key Manager is active."
+    break
+  fi
+  if [ "$i" -eq 30 ]; then
+    echo "[setup] ERROR: IS Key Manager did not become active after 30 attempts. Aborting."
+    exit 1
+  fi
+  printf "."
+  sleep 5
+done
+
 # ── 3. Import and publish KYCAPI ─────────────────────────────────────────────
 echo "[setup] Waiting for publisher API to be ready..."
 until curl -sk -o /dev/null -w "%{http_code}" -u admin:admin "${APIM_BASE}/api/am/publisher/v4/apis?limit=1" | grep -q "200"; do
@@ -76,13 +93,19 @@ API_ID=$(curl -sk -u admin:admin "${APIM_BASE}/api/am/publisher/v4/apis?limit=50
 
 if [ -z "$API_ID" ]; then
   echo "[setup] Creating KYCAPI..."
-  RESP=$(curl -sk -u admin:admin -X POST \
-    "${APIM_BASE}/api/am/publisher/v4/apis" \
-    -H "Content-Type: application/json" \
-    -d @/setup/create-api.json)
-  echo "[setup] Create response: $RESP"
-  API_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
-  echo "[setup] KYCAPI created: $API_ID"
+  for attempt in $(seq 1 12); do
+    RESP=$(curl -sk -u admin:admin -X POST \
+      "${APIM_BASE}/api/am/publisher/v4/apis" \
+      -H "Content-Type: application/json" \
+      -d @/setup/create-api.json)
+    API_ID=$(echo "$RESP" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null)
+    if [ -n "$API_ID" ]; then
+      echo "[setup] KYCAPI created: $API_ID"
+      break
+    fi
+    echo "[setup] Create attempt $attempt failed (KM not propagated yet): $RESP"
+    sleep 10
+  done
 else
   echo "[setup] KYCAPI exists ($API_ID) — updating subscription settings..."
   CURRENT_API=$(curl -sk -u admin:admin "${APIM_BASE}/api/am/publisher/v4/apis/${API_ID}")

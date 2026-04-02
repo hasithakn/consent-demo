@@ -157,61 +157,61 @@ else
   exit 1
 fi
 
-# ═════════════════════════════════════════════════════════════════════════════
-# SAMPLE CONSENT
-# ═════════════════════════════════════════════════════════════════════════════
+# # ═════════════════════════════════════════════════════════════════════════════
+# # SAMPLE CONSENT
+# # ═════════════════════════════════════════════════════════════════════════════
 
-echo ""
-echo "[populate] Creating sample KYC consent (org: ${ORG_ID})..."
+# echo ""
+# echo "[populate] Creating sample KYC consent (org: ${ORG_ID})..."
 
-CONSENT_RESPONSE=$(curl -s -w "\n%{http_code}" \
-  -X POST "${OPENFGC_URL}/api/v1/consents" \
-  -H "Content-Type: application/json" \
-  -H "org-id: ${ORG_ID}" \
-  -H "TPP-client-id: ${TPP_CLIENT_ID}" \
-  -d "{
-    \"type\": \"kyc\",
-    \"validityTime\": 1893456000,
-    \"recurringIndicator\": false,
-    \"dataAccessValidityDuration\": 0,
-    \"frequency\": 0,
-    \"purposes\": [
-      {
-        \"name\": \"${PURPOSE_NAME}\",
-        \"elements\": [
-          { \"name\": \"first_name\",      \"isUserApproved\": false,  \"value\": {} },
-          { \"name\": \"last_name\",       \"isUserApproved\": false,  \"value\": {} },
-          { \"name\": \"date_of_birth\",   \"isUserApproved\": false,  \"value\": {} },
-          { \"name\": \"gender\",          \"isUserApproved\": false,  \"value\": {} },
-          { \"name\": \"nationality\",     \"isUserApproved\": false,  \"value\": {} },
-          { \"name\": \"middle_name\",     \"isUserApproved\": false, \"value\": {} },
-          { \"name\": \"place_of_birth\",  \"isUserApproved\": false, \"value\": {} },
-          { \"name\": \"marital_status\",  \"isUserApproved\": false, \"value\": {} },
-          { \"name\": \"tax_id\",          \"isUserApproved\": false, \"value\": {} },
-          { \"name\": \"source_of_funds\", \"isUserApproved\": false, \"value\": {} },
-          { \"name\": \"contact\",         \"isUserApproved\": false,  \"value\": {} },
-          { \"name\": \"identifiers\",     \"isUserApproved\": false,  \"value\": {} },
-          { \"name\": \"employment\",      \"isUserApproved\": false,  \"value\": {} }
-        ]
-      }
-    ],
-    \"attributes\": {
-      \"userId\": \"demo-user@example.com\"
-    },
-    \"authorizations\": []
-  }")
+# CONSENT_RESPONSE=$(curl -s -w "\n%{http_code}" \
+#   -X POST "${OPENFGC_URL}/api/v1/consents" \
+#   -H "Content-Type: application/json" \
+#   -H "org-id: ${ORG_ID}" \
+#   -H "TPP-client-id: ${TPP_CLIENT_ID}" \
+#   -d "{
+#     \"type\": \"kyc\",
+#     \"validityTime\": 1893456000,
+#     \"recurringIndicator\": false,
+#     \"dataAccessValidityDuration\": 0,
+#     \"frequency\": 0,
+#     \"purposes\": [
+#       {
+#         \"name\": \"${PURPOSE_NAME}\",
+#         \"elements\": [
+#           { \"name\": \"first_name\",      \"isUserApproved\": false,  \"value\": {} },
+#           { \"name\": \"last_name\",       \"isUserApproved\": false,  \"value\": {} },
+#           { \"name\": \"date_of_birth\",   \"isUserApproved\": false,  \"value\": {} },
+#           { \"name\": \"gender\",          \"isUserApproved\": false,  \"value\": {} },
+#           { \"name\": \"nationality\",     \"isUserApproved\": false,  \"value\": {} },
+#           { \"name\": \"middle_name\",     \"isUserApproved\": false, \"value\": {} },
+#           { \"name\": \"place_of_birth\",  \"isUserApproved\": false, \"value\": {} },
+#           { \"name\": \"marital_status\",  \"isUserApproved\": false, \"value\": {} },
+#           { \"name\": \"tax_id\",          \"isUserApproved\": false, \"value\": {} },
+#           { \"name\": \"source_of_funds\", \"isUserApproved\": false, \"value\": {} },
+#           { \"name\": \"contact\",         \"isUserApproved\": false,  \"value\": {} },
+#           { \"name\": \"identifiers\",     \"isUserApproved\": false,  \"value\": {} },
+#           { \"name\": \"employment\",      \"isUserApproved\": false,  \"value\": {} }
+#         ]
+#       }
+#     ],
+#     \"attributes\": {
+#       \"userId\": \"demo-user@example.com\"
+#     },
+#     \"authorizations\": []
+#   }")
 
-HTTP_STATUS=$(echo "$CONSENT_RESPONSE" | tail -1)
-CONSENT_BODY=$(echo "$CONSENT_RESPONSE" | awk 'NR>1{print prev} {prev=$0}')
+# HTTP_STATUS=$(echo "$CONSENT_RESPONSE" | tail -1)
+# CONSENT_BODY=$(echo "$CONSENT_RESPONSE" | awk 'NR>1{print prev} {prev=$0}')
 
-if [ "$HTTP_STATUS" = "201" ]; then
-  CONSENT_ID=$(echo "$CONSENT_BODY" | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"//')
-  echo "[populate]   created consent: $CONSENT_ID"
-else
-  echo "[populate]   ERROR creating consent (HTTP $HTTP_STATUS)"
-  echo "$CONSENT_BODY"
-  exit 1
-fi
+# if [ "$HTTP_STATUS" = "201" ]; then
+#   CONSENT_ID=$(echo "$CONSENT_BODY" | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"//')
+#   echo "[populate]   created consent: $CONSENT_ID"
+# else
+#   echo "[populate]   ERROR creating consent (HTTP $HTTP_STATUS)"
+#   echo "$CONSENT_BODY"
+#   exit 1
+# fi
 
 echo ""
 echo "[populate] Done. OpenFGC is clean and populated."

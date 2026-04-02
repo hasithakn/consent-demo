@@ -19,7 +19,7 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <footer class="footer">
     <div class="container-fluid">
-        <p>Government Consent Portal <script>document.write(new Date().getFullYear());</script>
+        <p>Digital Locker &mdash; Citizen Consent Management <script>document.write(new Date().getFullYear());</script>
         </p>
     </div>
 </footer>

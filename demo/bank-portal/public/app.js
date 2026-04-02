@@ -55,7 +55,7 @@ async function loadElementsChecklist() {
       div.className = 'element-row';
       div.innerHTML = `
         <label class="element-check">
-          <input type="checkbox" name="element" value="${el.name}" checked>
+          <input type="checkbox" name="element" value="${el.name}" ${el.defaultSelected ? 'checked' : ''}>
           ${escapeHtml(el.display)}
         </label>
         <select class="element-type" data-element="${el.name}">
@@ -104,23 +104,12 @@ document.getElementById('btn-submit-kyc').addEventListener('click', async () => 
 
     const data = await r.json();
     if (r.ok) {
-      // Show result
-      document.getElementById('result-consent-id').textContent = data.consentId;
-      document.getElementById('result-status').textContent = 'Pending Citizen Approval';
-
-      if (data.webAuthLink) {
-        document.getElementById('result-auth-link').href = data.webAuthLink;
-        document.getElementById('result-auth-link').textContent = data.webAuthLink;
-        document.getElementById('result-auth-link-box').style.display = 'block';
-      } else {
-        document.getElementById('result-auth-link-box').style.display = 'none';
-      }
-
-      document.getElementById('kyc-result').style.display = 'block';
-
       // Reset form to defaults
       document.getElementById('nin-input').value = 'NIC123456';
       document.getElementById('name-input').value = '';
+      // Navigate to dashboard
+      navigateTo('dashboard');
+      showToast('KYC request submitted — waiting for citizen approval.', 'success');
     } else {
       alert('Error: ' + (data.error || 'Unknown error'));
     }
@@ -132,13 +121,20 @@ document.getElementById('btn-submit-kyc').addEventListener('click', async () => 
   btn.textContent = 'Submit KYC Request';
 });
 
-function copyAuthLink() {
-  const link = document.getElementById('result-auth-link').textContent;
-  navigator.clipboard.writeText(link).then(() => {
-    const btn = event.target;
-    btn.textContent = 'Copied!';
-    setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
-  });
+function showToast(message, type) {
+  const existing = document.getElementById('portal-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.id = 'portal-toast';
+  toast.className = 'portal-toast toast-' + (type || 'info');
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  // Trigger animation
+  requestAnimationFrame(() => { requestAnimationFrame(() => { toast.classList.add('toast-visible'); }); });
+  setTimeout(() => {
+    toast.classList.remove('toast-visible');
+    setTimeout(() => toast.remove(), 400);
+  }, 3500);
 }
 
 // ===== Refresh data =====

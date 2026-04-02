@@ -190,6 +190,41 @@
   .element-mandatory.yes { background: #fce4ec; color: var(--danger); }
   .element-mandatory.no { background: #e8f5e9; color: var(--success); }
 
+  /* Push notification banner */
+  #push-banner {
+    display: none;
+    position: fixed;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 420px;
+    z-index: 200;
+    padding: 10px 12px 0;
+    pointer-events: none;
+  }
+  #push-banner.show { display: block; pointer-events: auto; }
+  .push-inner {
+    background: #0d47a1;
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.35);
+    animation: slideDown .35s cubic-bezier(.22,.61,.36,1) both;
+    cursor: pointer;
+  }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-60px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .push-icon { font-size: 30px; flex-shrink: 0; }
+  .push-text { flex: 1; }
+  .push-title { color: #fff; font-size: 14px; font-weight: 700; }
+  .push-sub   { color: rgba(255,255,255,.75); font-size: 12px; margin-top: 2px; }
+  .push-dismiss {
+    background: none; border: none; color: rgba(255,255,255,.6);
+    font-size: 18px; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
+  }
+
   /* Profile section */
   .profile-header {
     text-align: center; padding: 24px; background: var(--card);
@@ -215,6 +250,18 @@
 </style>
 </head>
 <body>
+
+<!-- Push notification banner -->
+<div id="push-banner">
+  <div class="push-inner" id="push-inner" onclick="onBannerClick()">
+    <span class="push-icon">🏦</span>
+    <div class="push-text">
+      <div class="push-title">Consent Request</div>
+      <div class="push-sub" id="push-sub">National Bank requires your approval</div>
+    </div>
+    <button class="push-dismiss" onclick="event.stopPropagation();dismissBanner()" title="Dismiss">✕</button>
+  </div>
+</div>
 
 <div class="status-bar">
   <span>9:41 AM</span>
@@ -338,6 +385,38 @@
     if (tab === 'profile') loadProfileStats();
   }
 
+  // ===== Push banner state =====
+  var seenRequestIds = new Set();
+  var bannerAuthUrl = null;
+
+  function showBanner(item) {
+    bannerAuthUrl = item.webAuthLink;
+    document.getElementById('push-sub').textContent =
+      'National Bank — tap to review (' + escapeHtml(item.customerName || 'NIN ' + item.nin) + ')';
+    var banner = document.getElementById('push-banner');
+    // Re-trigger animation by replacing the inner element clone
+    var inner = document.getElementById('push-inner');
+    var clone = inner.cloneNode(true);
+    clone.id = 'push-inner';
+    clone.querySelector('.push-sub').textContent = document.getElementById('push-sub').textContent;
+    clone.addEventListener('click', onBannerClick);
+    clone.querySelector('.push-dismiss').addEventListener('click', function(e) { e.stopPropagation(); dismissBanner(); });
+    inner.parentNode.replaceChild(clone, inner);
+    banner.classList.add('show');
+    // Auto-dismiss after 12 seconds
+    clearTimeout(banner._autoHide);
+    banner._autoHide = setTimeout(dismissBanner, 12000);
+  }
+
+  function dismissBanner() {
+    document.getElementById('push-banner').classList.remove('show');
+  }
+
+  function onBannerClick() {
+    if (bannerAuthUrl) window.open(bannerAuthUrl, '_blank');
+    dismissBanner();
+  }
+
   // ===== Home / Pending Consents =====
   async function poll() {
     try {
@@ -357,6 +436,14 @@
       empty.style.display = 'none';
       badge.style.display = 'inline';
       badge.textContent = data.length;
+
+      // Detect newly arrived requests and show banner
+      data.forEach(function(item) {
+        if (!seenRequestIds.has(item.id)) {
+          seenRequestIds.add(item.id);
+          showBanner(item);
+        }
+      });
 
       container.innerHTML = data.map(function(item) {
         return '<div class="notification-card urgent pulse">' +

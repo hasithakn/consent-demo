@@ -18,7 +18,7 @@
 
 <div class="row">
     <div style="padding: 20px 0; text-align: center;">
-        <h1 style="margin: 0; color: #0078d4; font-size: 32px; font-weight: 600;">Government Consent Portal</h1>
-        <p style="margin: 8px 0 0 0; color: #605e5c; font-size: 14px;">Secure Data Authorization</p>
+        <h1 style="margin: 0; color: #0078d4; font-size: 32px; font-weight: 600;">&#x1F5C4;&#xFE0F; Digital Locker</h1>
+        <p style="margin: 8px 0 0 0; color: #605e5c; font-size: 14px;">Citizen Consent Management</p>
     </div>
 </div>

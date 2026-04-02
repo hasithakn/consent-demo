@@ -21,7 +21,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Government Consent Portal</title>
+<title>Digital Locker</title>
 
 <link rel="icon" href="images/favicon.png" type="image/x-icon"/>
 <link href="libs/bootstrap_3.4.1/css/bootstrap.min.css" rel="stylesheet">

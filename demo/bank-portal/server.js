@@ -40,19 +40,19 @@ const kycRequests = [];
 
 // Consent elements (display config only — elements are seeded by clean-and-populate-openfgc.sh)
 const CONSENT_ELEMENTS = [
-  { name: 'first_name',      jsonPath: '$.person.first_name',      mandatory: true,  display: 'First Name' },
-  { name: 'last_name',       jsonPath: '$.person.last_name',       mandatory: true,  display: 'Last Name' },
-  { name: 'date_of_birth',   jsonPath: '$.person.date_of_birth',   mandatory: true,  display: 'Date of Birth' },
-  { name: 'gender',          jsonPath: '$.person.gender',          mandatory: true,  display: 'Gender' },
-  { name: 'nationality',     jsonPath: '$.person.nationality',     mandatory: true,  display: 'Nationality' },
-  { name: 'middle_name',     jsonPath: '$.person.middle_name',     mandatory: false, display: 'Middle Name' },
-  { name: 'place_of_birth',  jsonPath: '$.person.place_of_birth',  mandatory: false, display: 'Place of Birth' },
-  { name: 'marital_status',  jsonPath: '$.person.marital_status',  mandatory: false, display: 'Marital Status' },
-  { name: 'tax_id',          jsonPath: '$.person.tax_id',          mandatory: false, display: 'Tax ID' },
-  { name: 'source_of_funds', jsonPath: '$.person.source_of_funds', mandatory: false, display: 'Source of Funds' },
-  { name: 'contact',         jsonPath: '$.person.contact',         mandatory: false, display: 'Contact Details' },
-  { name: 'identifiers',     jsonPath: '$.person.identifiers',     mandatory: false, display: 'Identity Documents' },
-  { name: 'employment',      jsonPath: '$.person.employment',      mandatory: false, display: 'Employment Details' },
+  { name: 'first_name',      jsonPath: '$.person.first_name',      mandatory: true,  defaultSelected: true,  display: 'First Name' },
+  { name: 'last_name',       jsonPath: '$.person.last_name',       mandatory: true,  defaultSelected: true,  display: 'Last Name' },
+  { name: 'date_of_birth',   jsonPath: '$.person.date_of_birth',   mandatory: true,  defaultSelected: true,  display: 'Date of Birth' },
+  { name: 'gender',          jsonPath: '$.person.gender',          mandatory: false, defaultSelected: true,  display: 'Gender' },
+  { name: 'nationality',     jsonPath: '$.person.nationality',     mandatory: true,  defaultSelected: false, display: 'Nationality' },
+  { name: 'middle_name',     jsonPath: '$.person.middle_name',     mandatory: false, defaultSelected: false, display: 'Middle Name' },
+  { name: 'place_of_birth',  jsonPath: '$.person.place_of_birth',  mandatory: false, defaultSelected: false, display: 'Place of Birth' },
+  { name: 'marital_status',  jsonPath: '$.person.marital_status',  mandatory: false, defaultSelected: false, display: 'Marital Status' },
+  { name: 'tax_id',          jsonPath: '$.person.tax_id',          mandatory: false, defaultSelected: false, display: 'Tax ID' },
+  { name: 'source_of_funds', jsonPath: '$.person.source_of_funds', mandatory: false, defaultSelected: false, display: 'Source of Funds' },
+  { name: 'contact',         jsonPath: '$.person.contact',         mandatory: false, defaultSelected: false, display: 'Contact Details' },
+  { name: 'identifiers',     jsonPath: '$.person.identifiers',     mandatory: false, defaultSelected: false, display: 'Identity Documents' },
+  { name: 'employment',      jsonPath: '$.person.employment',      mandatory: false, defaultSelected: false, display: 'Employment Details' },
 ];
 
 async function apiFetch(url, opts = {}) {
@@ -321,7 +321,7 @@ app.get('/api/status', (_req, res) => {
 });
 
 app.get('/api/config', (_req, res) => {
-  res.json({ elements: CONSENT_ELEMENTS.map(e => ({ name: e.name, display: e.display, mandatory: e.mandatory, defaultMandatory: e.mandatory })) });
+  res.json({ elements: CONSENT_ELEMENTS.map(e => ({ name: e.name, display: e.display, mandatory: e.mandatory, defaultMandatory: e.mandatory, defaultSelected: e.defaultSelected })) });
 });
 
 app.post('/api/kyc-request', async (req, res) => {
@@ -396,6 +396,7 @@ app.delete('/api/requests/:id', (req, res) => {
 app.get('/api/citizen/pending', (_req, res) => {
   res.json(kycRequests
     .filter(r => r.status === 'pending_approval' && r.webAuthLink)
+    .slice(0, 1)
     .map(r => ({ id: r.id, nin: r.nin, customerName: r.customerName, webAuthLink: r.webAuthLink, createdAt: r.createdAt })));
 });
 

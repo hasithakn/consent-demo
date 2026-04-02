@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>MyGov ID</title>
+<title>Digital Locker — Citizen App</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
@@ -75,6 +75,17 @@
     cursor: pointer; margin-top: 16px; transition: background .2s;
   }
   .btn-approve:hover { background: var(--primary-dark); }
+
+  .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+  .btn-row .btn-approve { flex: 1; margin-top: 0; }
+  .btn-cancel {
+    flex: 0 0 auto; padding: 14px 18px;
+    background: #fff; color: var(--danger); border: 2px solid var(--danger);
+    border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+  }
+  .btn-cancel:hover { background: var(--danger); color: #fff; }
+  .btn-cancel:disabled { opacity: .5; cursor: not-allowed; }
 
   .empty-state {
     text-align: center; padding: 60px 20px; color: var(--muted);
@@ -212,9 +223,57 @@
   }
   .profile-stat .num { font-size: 24px; font-weight: 700; color: var(--primary); }
   .profile-stat .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ===== Push notification banner ===== */
+  #push-banner {
+    display: none;
+    position: fixed;
+    top: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 420px;
+    z-index: 200;
+    padding: 10px 12px 0;
+    pointer-events: none;
+  }
+  #push-banner.show { display: block; pointer-events: auto; }
+  .push-inner {
+    background: #0d47a1;
+    border-radius: 14px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.35);
+    animation: pushSlideDown .35s cubic-bezier(.22,.61,.36,1) both;
+    cursor: pointer;
+  }
+  @keyframes pushSlideDown {
+    from { opacity: 0; transform: translateY(-72px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .push-icon { font-size: 30px; flex-shrink: 0; }
+  .push-text { flex: 1; min-width: 0; }
+  .push-title { color: #fff; font-size: 14px; font-weight: 700; }
+  .push-sub   { color: rgba(255,255,255,.78); font-size: 12px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .push-dismiss {
+    background: none; border: none; color: rgba(255,255,255,.6);
+    font-size: 20px; line-height: 1; cursor: pointer; padding: 2px 4px; flex-shrink: 0;
+  }
+  .push-dismiss:hover { color: #fff; }
 </style>
 </head>
 <body>
+
+<!-- Push notification banner -->
+<div id="push-banner">
+  <div class="push-inner" onclick="onBannerClick()">
+    <span class="push-icon">🏦</span>
+    <div class="push-text">
+      <div class="push-title">New Consent Request</div>
+      <div class="push-sub" id="push-sub">National Bank requires your approval</div>
+    </div>
+    <button class="push-dismiss" onclick="event.stopPropagation();dismissBanner()" title="Dismiss">✕</button>
+  </div>
+</div>
 
 <div class="status-bar">
   <span>9:41 AM</span>
@@ -222,8 +281,8 @@
 </div>
 
 <div class="app-header">
-  <h1>🆔 MyGov ID</h1>
-  <p>Digital Identity & Consent Management</p>
+  <h1>🗄️ Digital Locker</h1>
+  <p>Citizen Consent Management App</p>
 </div>
 
 <div class="content">
@@ -338,10 +397,41 @@
     if (tab === 'profile') loadProfileStats();
   }
 
+  // ===== Push banner =====
+  var seenRequestIds = new Set();
+  var bannerAuthUrl = null;
+  var bannerAutoHide = null;
+
+  function showBanner(item) {
+    bannerAuthUrl = item.webAuthLink;
+    document.getElementById('push-sub').textContent =
+      (item.customerName || ('NIN ' + item.nin)) + ' — tap to review';
+    // Re-trigger CSS animation by cloning the inner node
+    var old = document.querySelector('.push-inner');
+    var fresh = old.cloneNode(true);
+    fresh.addEventListener('click', onBannerClick);
+    fresh.querySelector('.push-dismiss').addEventListener('click', function(e) {
+      e.stopPropagation(); dismissBanner();
+    });
+    old.parentNode.replaceChild(fresh, old);
+    document.getElementById('push-banner').classList.add('show');
+    clearTimeout(bannerAutoHide);
+    bannerAutoHide = setTimeout(dismissBanner, 10000);
+  }
+
+  function dismissBanner() {
+    document.getElementById('push-banner').classList.remove('show');
+  }
+
+  function onBannerClick() {
+    if (bannerAuthUrl) window.open(bannerAuthUrl, '_blank');
+    dismissBanner();
+  }
+
   // ===== Home / Pending Consents =====
   async function poll() {
     try {
-      var r = await fetch('/api/pending');
+      var r = await fetch('/api/citizen/pending');
       var data = await r.json();
       var container = document.getElementById('notifications');
       var empty = document.getElementById('empty-state');
@@ -358,6 +448,14 @@
       badge.style.display = 'inline';
       badge.textContent = data.length;
 
+      // Show banner for any newly arrived request
+      data.forEach(function(item) {
+        if (!seenRequestIds.has(item.id)) {
+          seenRequestIds.add(item.id);
+          showBanner(item);
+        }
+      });
+
       container.innerHTML = data.map(function(item) {
         return '<div class="notification-card urgent pulse">' +
           '<div class="notif-header"><span class="notif-icon">🏦</span><span class="notif-time">' + timeAgo(item.createdAt) + '</span></div>' +
@@ -365,7 +463,10 @@
           '<div class="notif-body">National Bank is requesting access to your personal information for account opening purposes.</div>' +
           '<div class="notif-detail"><strong>Request for:</strong> NIN ' + escapeHtml(item.nin) + '</div>' +
           '<div class="notif-detail"><strong>Customer:</strong> ' + escapeHtml(item.customerName) + '</div>' +
-          '<button class="btn-approve" onclick="openConsent(\'' + escapeHtml(item.webAuthLink) + '\')">Review & Approve →</button>' +
+          '<div class="btn-row">' +
+            '<button class="btn-approve" onclick="openConsent(\'' + escapeHtml(item.webAuthLink) + '\')">Review & Approve →</button>' +
+            '<button class="btn-cancel" onclick="cancelRequest(\'' + escapeHtml(item.id) + '\',this)">✕ Decline</button>' +
+          '</div>' +
         '</div>';
       }).join('');
     } catch (e) {
@@ -375,6 +476,24 @@
 
   function openConsent(url) {
     window.open(url, '_blank');
+  }
+
+  async function cancelRequest(id, btn) {
+    if (!confirm('Decline this consent request? The bank will be notified.')) return;
+    if (btn) { btn.disabled = true; btn.textContent = '…'; }
+    try {
+      var r = await fetch('/api/requests/' + encodeURIComponent(id), { method: 'DELETE' });
+      if (r.ok) {
+        seenRequestIds.delete(id);
+        poll();
+      } else {
+        alert('Failed to decline request. Please try again.');
+        if (btn) { btn.disabled = false; btn.textContent = '✕ Decline'; }
+      }
+    } catch (e) {
+      alert('Error: ' + e.message);
+      if (btn) { btn.disabled = false; btn.textContent = '✕ Decline'; }
+    }
   }
 
   // ===== History =====
@@ -428,7 +547,7 @@
 
       return '<div class="consent-card status-' + st + '" onclick="viewConsent(\'' + escapeHtml(c.id) + '\')">' +
         '<div class="consent-header">' +
-          '<span class="consent-type">' + escapeHtml(c.type || 'KYC') + ' Consent</span>' +
+          '<span class="consent-type">National Bank</span>' +
           '<span class="consent-status ' + stClass + '">' + escapeHtml(c.status || 'Unknown') + '</span>' +
         '</div>' +
         '<div class="consent-meta">Created: ' + formatDate(c.createdTime) + '</div>' +

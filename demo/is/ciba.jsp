@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authorization Complete - Government Consent Portal</title>
+    <title>Authorization Complete - Digital Locker</title>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -45,7 +45,7 @@
     <div class="wrapper">
         <div class="header">
             <span class="icon">&#x1F6E1;&#xFE0F;</span>
-            <h1>Government Consent Portal</h1>
+            <h1>Digital Locker</h1>
             <p>Secure Data Authorization</p>
         </div>
         <div class="card">
@@ -56,7 +56,7 @@
             <button class="btn-close" onclick="window.close()">Close this window</button>
         </div>
         <div class="footer">
-            &copy; Government Consent Portal <script>document.write(new Date().getFullYear());</script>
+            &copy; Digital Locker <script>document.write(new Date().getFullYear());</script>
         </div>
     </div>
 </body>

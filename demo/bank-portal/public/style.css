@@ -289,3 +289,26 @@ body {
   border-top: 1px solid var(--border);
   background: var(--bg-card);
 }
+
+/* ===== Toast ===== */
+.portal-toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  opacity: 0;
+  transition: opacity .3s, transform .3s;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #fff;
+  z-index: 9999;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+.portal-toast.toast-visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.portal-toast.toast-success { background: #1b5e20; }
+.portal-toast.toast-error   { background: #b71c1c; }
+.portal-toast.toast-info    { background: #1565c0; }
