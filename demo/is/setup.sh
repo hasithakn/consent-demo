@@ -184,4 +184,166 @@ HTTP_CODE=$(curl -sk -u admin:admin -X PATCH \
   -o /dev/null -w "%{http_code}")
 echo "[is-setup] Role assign to users: HTTP $HTTP_CODE"
 
+# ── 11. Apply Digital Locker branding ────────────────────────────────────────
+echo "[is-setup] Applying Digital Locker branding..."
+BRANDING_PAYLOAD=$(cat <<'BEOF'
+{
+  "type": "ORG",
+  "name": "super",
+  "locale": "en-US",
+  "preference": {
+    "configs": {
+      "isBrandingEnabled": true,
+      "removeDefaultBranding": false
+    },
+    "organizationDetails": {
+      "displayName": "Digital Locker",
+      "copyrightText": "© Digital Locker — Citizen Consent Portal",
+      "siteTitle": "Digital Locker | Login",
+      "supportEmail": "support@digitallocker.gov"
+    },
+    "images": {
+      "logo": {
+        "imgURL": "",
+        "altText": "Digital Locker"
+      },
+      "favicon": {
+        "imgURL": ""
+      },
+      "myAccountLogo": {
+        "imgURL": "",
+        "altText": "Digital Locker"
+      }
+    },
+    "theme": {
+      "activeTheme": "LIGHT",
+      "LIGHT": {
+        "colors": {
+          "primary": {
+            "main": "#1565c0",
+            "contrastText": "#ffffff"
+          },
+          "secondary": {
+            "main": "#0d47a1",
+            "contrastText": "#ffffff"
+          },
+          "background": {
+            "body": {
+              "main": "#f5f5f5"
+            },
+            "surface": {
+              "main": "#ffffff",
+              "light": "#f5f5f5",
+              "dark": "#e0e0e0",
+              "inverted": "#1565c0"
+            }
+          },
+          "text": {
+            "primary": "#212121",
+            "secondary": "#757575"
+          },
+          "alerts": {
+            "error": { "main": "#c62828" },
+            "info": { "main": "#1565c0" },
+            "warning": { "main": "#ef6c00" },
+            "neutral": { "main": "#757575" }
+          },
+          "illustrations": {
+            "primary": { "main": "#1565c0" },
+            "secondary": { "main": "#0d47a1" },
+            "accent1": { "main": "#e3f2fd" },
+            "accent2": { "main": "#bbdefb" },
+            "accent3": { "main": "#64b5f6" }
+          }
+        },
+        "buttons": {
+          "primary": {
+            "base": {
+              "font": { "color": "#ffffff" },
+              "background": { "backgroundColor": "#1565c0" },
+              "border": { "borderRadius": "8px", "borderColor": "#1565c0" }
+            }
+          },
+          "secondary": {
+            "base": {
+              "font": { "color": "#1565c0" },
+              "background": { "backgroundColor": "#ffffff" },
+              "border": { "borderRadius": "8px", "borderColor": "#1565c0", "borderWidth": "2px" }
+            }
+          },
+          "externalConnection": {
+            "base": {
+              "background": { "backgroundColor": "#ffffff" },
+              "font": { "color": "#212121" },
+              "border": { "borderRadius": "8px" }
+            }
+          }
+        },
+        "header": {
+          "background": { "backgroundColor": "#0d47a1" },
+          "font": { "color": "#ffffff" },
+          "border": { "borderBottomWidth": "0", "borderColor": "transparent" }
+        },
+        "footer": {
+          "background": { "backgroundColor": "#0d47a1" },
+          "font": { "color": "rgba(255,255,255,0.7)" },
+          "border": { "borderTopWidth": "0", "borderColor": "transparent" }
+        },
+        "loginBox": {
+          "background": { "backgroundColor": "#ffffff" },
+          "font": { "color": "#212121" },
+          "border": {
+            "borderColor": "#e0e0e0",
+            "borderRadius": "12px",
+            "borderWidth": "1px"
+          },
+          "inputs": {
+            "base": {
+              "background": { "backgroundColor": "#ffffff" },
+              "font": { "color": "#212121" },
+              "border": { "borderRadius": "6px", "borderColor": "#e0e0e0" },
+              "labels": { "font": { "color": "#212121" } }
+            }
+          }
+        },
+        "page": {
+          "background": { "backgroundColor": "#f5f5f5", "backgroundImage": "" },
+          "font": { "color": "#212121" }
+        },
+        "typography": {
+          "font": {
+            "fontFamily": "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+            "importURL": ""
+          },
+          "heading": {
+            "font": { "color": "#1565c0" }
+          }
+        }
+      }
+    }
+  }
+}
+BEOF
+)
+
+# Try POST first (create), fall back to PUT (update if already exists)
+HTTP_CODE=$(curl -sk -u admin:admin -X POST \
+  "${IS_BASE}/api/server/v1/branding-preference" \
+  -H "Content-Type: application/json" \
+  -d "$BRANDING_PAYLOAD" \
+  -o /tmp/branding-resp.json -w "%{http_code}")
+
+if [ "$HTTP_CODE" = "409" ]; then
+  echo "[is-setup] Branding already exists, updating..."
+  HTTP_CODE=$(curl -sk -u admin:admin -X PUT \
+    "${IS_BASE}/api/server/v1/branding-preference" \
+    -H "Content-Type: application/json" \
+    -d "$BRANDING_PAYLOAD" \
+    -o /tmp/branding-resp.json -w "%{http_code}")
+fi
+echo "[is-setup] Branding preference: HTTP $HTTP_CODE"
+if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
+  echo "[is-setup] Branding response: $(cat /tmp/branding-resp.json 2>/dev/null)"
+fi
+
 echo "[is-setup] IS setup complete."
