@@ -439,4 +439,4 @@ function escapeHtml(str) {
 // ===== Init =====
 checkSetup();
 refreshRequests();
-pollInterval = setInterval(refreshRequests, 3000);
+pollInterval = setInterval(refreshRequests, 1500);

@@ -208,7 +208,10 @@ async function pollForToken(authReqId) {
     console.log(`[Poll] Token exchange OK — token_type=${data.token_type}, scope="${data.scope}", expires_in=${data.expires_in}, has_id_token=${!!data.id_token}`);
     return data;
   }
-  if (data.error === 'authorization_pending' || data.error === 'slow_down') return { pending: true };
+  if (data.error === 'authorization_pending' || data.error === 'slow_down') {
+    console.log(`[Poll] ${data.error} for auth_req_id=${authReqId.substring(0, 8)}...`);
+    return { pending: true };
+  }
   console.log(`[Poll] Token exchange error status=${r.status} body=${text}`);
   return { error: data.error || 'unknown', description: data.error_description };
 }
@@ -284,7 +287,7 @@ setInterval(async () => {
       console.error(`[Poll] Error for ${req.id}:`, e.message);
     }
   }
-}, 4000);
+}, 5000);
 
 // ===== Background: revocation check via gateway =====
 setInterval(async () => {

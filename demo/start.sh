@@ -133,8 +133,8 @@ if [ -n "$CLIENT_ID" ]; then
 BANK_CLIENT_ID=${CLIENT_ID}
 BANK_CLIENT_SECRET=${CLIENT_SECRET}
 EOF
-  echo "[start] Restarting bank-portal with updated credentials..."
-  docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-deps --no-build bank-portal
+  echo "[start] Restarting demo-ui with updated credentials..."
+  docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-deps --no-build demo-ui
 else
   echo "[start] WARNING: Could not extract credentials from IS logs — check 'docker logs consent-is'"
 fi
@@ -158,7 +158,7 @@ echo "  Bank Portal       http://localhost:3010"
 echo "  Citizen App       http://localhost:3010/citizen/"
 echo ""
 echo "  App: National Bank KYC Portal"
-echo "  Client ID     : ${CLIENT_ID:-n/a (resolves at bank-portal startup)}"
-echo "  Client Secret : ${CLIENT_SECRET:-n/a (resolves at bank-portal startup)}"
+echo "  Client ID     : ${CLIENT_ID:-n/a (resolves at demo-ui startup)}"
+echo "  Client Secret : ${CLIENT_SECRET:-n/a (resolves at demo-ui startup)}"
 echo "════════════════════════════════════════════════════════════"
 echo ""

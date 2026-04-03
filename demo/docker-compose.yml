@@ -94,11 +94,11 @@ services:
         aliases:
           - identity-server
 
-  bank-portal:
+  demo-ui:
     build:
       context: .
-      dockerfile: bank-portal/Dockerfile
-    container_name: consent-bank-portal
+      dockerfile: demo-ui/Dockerfile
+    container_name: consent-demo-ui
     ports:
       - "3010:3010"
       - "3011:3010"
