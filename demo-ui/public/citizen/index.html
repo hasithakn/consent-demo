@@ -224,6 +224,71 @@
   .profile-stat .num { font-size: 24px; font-weight: 700; color: var(--primary); }
   .profile-stat .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; }
 
+  /* ===== Revoke Confirmation Modal ===== */
+  .revoke-modal-backdrop {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.55); z-index: 300;
+    align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .revoke-modal-backdrop.show { display: flex; }
+  .revoke-modal {
+    background: var(--card); border-radius: 16px;
+    width: 100%; max-width: 360px;
+    padding: 28px 24px 24px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    animation: modalPop .22s cubic-bezier(.22,.61,.36,1) both;
+  }
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(.92) translateY(12px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .revoke-modal-icon {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: #fbe9e7; display: flex; align-items: center;
+    justify-content: center; font-size: 28px; margin: 0 auto 16px;
+  }
+  .revoke-modal h3 {
+    text-align: center; font-size: 18px; font-weight: 700;
+    color: var(--text); margin-bottom: 10px;
+  }
+  .revoke-modal p {
+    text-align: center; font-size: 14px; color: var(--muted);
+    line-height: 1.55; margin-bottom: 24px;
+  }
+  .revoke-modal-actions { display: flex; gap: 10px; }
+  .revoke-modal-actions .btn-modal-cancel {
+    flex: 1; padding: 13px; background: #f5f5f5; color: var(--text);
+    border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+  }
+  .revoke-modal-actions .btn-modal-cancel:hover { background: #e0e0e0; }
+  .revoke-modal-actions .btn-modal-confirm {
+    flex: 1; padding: 13px; background: var(--danger); color: #fff;
+    border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .revoke-modal-actions .btn-modal-confirm:hover { opacity: .88; }
+  .revoke-modal-actions .btn-modal-confirm:disabled { opacity: .55; cursor: not-allowed; }
+
+  /* ===== Toast ===== */
+  #toast {
+    display: none; position: fixed;
+    bottom: 80px; left: 50%; transform: translateX(-50%);
+    background: #323232; color: #fff;
+    padding: 12px 20px; border-radius: 8px;
+    font-size: 13px; font-weight: 500;
+    z-index: 400; white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,.25);
+    animation: toastIn .25s ease both;
+  }
+  #toast.show { display: block; }
+  #toast.toast-error { background: var(--danger); }
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
   /* ===== Push notification banner ===== */
   #push-banner {
     display: none;
@@ -338,6 +403,22 @@
     </div>
   </div>
 </div>
+
+<!-- Revoke Confirmation Modal -->
+<div id="revoke-modal-backdrop" class="revoke-modal-backdrop">
+  <div class="revoke-modal">
+    <div class="revoke-modal-icon">⚠️</div>
+    <h3>Revoke Consent?</h3>
+    <p>National Bank will immediately lose access to your data. This action cannot be undone.</p>
+    <div class="revoke-modal-actions">
+      <button class="btn-modal-cancel" onclick="closeRevokeModal()">Cancel</button>
+      <button class="btn-modal-confirm" id="revoke-confirm-btn" onclick="confirmRevoke()">Revoke Access</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
 
 <!-- Consent Detail Overlay -->
 <div id="consent-overlay" class="overlay" onclick="if(event.target===this)closeOverlay()">
@@ -607,9 +688,42 @@
     document.getElementById('consent-overlay').classList.remove('show');
   }
 
-  // ===== Revoke =====
-  async function revokeConsent(id, btn) {
-    if (!confirm('Are you sure you want to revoke this consent? The bank will no longer have access to your data.')) return;
+  // ===== Toast =====
+  var toastTimer = null;
+  function showToast(msg, isError) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show' + (isError ? ' toast-error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.className = ''; }, 3000);
+  }
+
+  // ===== Revoke Modal =====
+  var _revokeId = null;
+  var _revokeBtn = null;
+
+  function revokeConsent(id, btn) {
+    _revokeId = id;
+    _revokeBtn = btn || null;
+    var confirmBtn = document.getElementById('revoke-confirm-btn');
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = 'Revoke Access';
+    document.getElementById('revoke-modal-backdrop').classList.add('show');
+  }
+
+  function closeRevokeModal() {
+    document.getElementById('revoke-modal-backdrop').classList.remove('show');
+    _revokeId = null;
+    _revokeBtn = null;
+  }
+
+  async function confirmRevoke() {
+    if (!_revokeId) return;
+    var id = _revokeId;
+    var btn = _revokeBtn;
+    var confirmBtn = document.getElementById('revoke-confirm-btn');
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = 'Revoking…';
     if (btn) { btn.disabled = true; btn.textContent = 'Revoking...'; }
     try {
       var r = await fetch('/api/consents/' + encodeURIComponent(id) + '/revoke', {
@@ -617,16 +731,19 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ actionBy: 'citizen', reason: 'Revoked by citizen via MyGov ID app' })
       });
+      closeRevokeModal();
       if (r.ok) {
         if (btn) { btn.textContent = 'Revoked ✓'; btn.style.background = '#f5f5f5'; btn.style.color = '#999'; btn.style.borderColor = '#ddd'; }
         closeOverlay();
         loadHistory();
+        showToast('Consent revoked successfully.');
       } else {
-        alert('Failed to revoke consent. Please try again.');
+        showToast('Failed to revoke consent. Please try again.', true);
         if (btn) { btn.disabled = false; btn.textContent = 'Revoke Access'; }
       }
     } catch (e) {
-      alert('Error: ' + e.message);
+      closeRevokeModal();
+      showToast('Error: ' + e.message, true);
       if (btn) { btn.disabled = false; btn.textContent = 'Revoke Access'; }
     }
   }

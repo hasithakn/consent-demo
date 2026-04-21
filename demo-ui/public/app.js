@@ -95,7 +95,7 @@ document.getElementById('btn-submit-kyc').addEventListener('click', async () => 
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         nin,
-        customerName: document.getElementById('name-input').value.trim() || 'N/A',
+        customerName: document.getElementById('name-input').value.trim() || 'John Doe',
         accountType: document.getElementById('account-type').value,
         elements: selectedElements,
         mandatoryElements
