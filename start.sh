@@ -111,33 +111,12 @@ done
 echo " APIM ready."
 
 # ── Wait for IS background setup.sh to finish ────────────────────────────────
-# setup.sh runs in the background after IS boots and logs credentials when done.
-echo "[start] Waiting for IS app setup to complete..."
-until docker logs consent-is 2>&1 | grep -q '\[is-setup\].*CLIENT_ID.*='; do
+echo "[start] Waiting for IS setup to complete (user, roles, branding)..."
+until docker logs consent-is 2>&1 | grep -q '\[is-setup\] IS setup complete\.'; do
   printf "."
   sleep 5
 done
 echo " IS setup complete."
-
-# ── Extract credentials from IS container logs ────────────────────────────────
-CLIENT_ID=$(docker logs consent-is 2>&1 \
-  | grep '\[is-setup\].*CLIENT_ID' | tail -1 \
-  | sed 's/.*= *//' | tr -d '[:space:]')
-CLIENT_SECRET=$(docker logs consent-is 2>&1 \
-  | grep '\[is-setup\].*CLIENT_SECRET' | tail -1 \
-  | sed 's/.*= *//' | tr -d '[:space:]')
-
-if [ -n "$CLIENT_ID" ]; then
-  echo "[start] Writing IS app credentials to .env..."
-  cat > "$SCRIPT_DIR/.env" <<EOF
-BANK_CLIENT_ID=${CLIENT_ID}
-BANK_CLIENT_SECRET=${CLIENT_SECRET}
-EOF
-  echo "[start] Restarting demo-ui with updated credentials..."
-  docker compose -f "$SCRIPT_DIR/docker-compose.yml" up -d --no-deps --no-build demo-ui
-else
-  echo "[start] WARNING: Could not extract credentials from IS logs — check 'docker logs consent-is'"
-fi
 
 # ── 5. Populate OpenFGC ──────────────────────────────────────────────────────
 echo ""
@@ -151,14 +130,14 @@ echo "  Demo is ready!"
 echo ""
 echo "  WSO2 IS Console   https://localhost:9446/console  (admin/admin)"
 echo "  WSO2 APIM Console https://localhost:9443/publisher (admin/admin)"
-echo "  APIM Gateway      https://localhost:8243"
-echo "  OpenFGC           http://localhost:3000/health"
-echo "  Mock KYC Backend  http://localhost:3002/health"
-echo "  Bank Portal       http://localhost:3010"
-echo "  Citizen App       http://localhost:3010/citizen/"
 echo ""
-echo "  App: National Bank KYC Portal"
-echo "  Client ID     : ${CLIENT_ID:-n/a (resolves at demo-ui startup)}"
-echo "  Client Secret : ${CLIENT_SECRET:-n/a (resolves at demo-ui startup)}"
+echo "  Hub               http://localhost:3010"
+echo "  Admin Console     http://localhost:3010/digital-locker/admin/"
+echo "  Bank Onboarding   http://localhost:3010/digital-locker/"
+echo "  Bank Portal       http://localhost:3010/bank-portal/"
+echo "  Citizen App       http://localhost:3010/digital-locker/citizen/"
+echo ""
+echo "  Next step: open Admin Console and register data elements,"
+echo "  then use Bank Onboarding to generate Bank Portal credentials."
 echo "════════════════════════════════════════════════════════════"
 echo ""

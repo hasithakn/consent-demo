@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Locker — Third Party Onboarding</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #1565c0;
+    --primary-dark: #0d47a1;
+    --success: #2e7d32;
+    --danger: #c62828;
+    --bg: #eceff1;
+    --card: #ffffff;
+    --text: #212121;
+    --muted: #757575;
+    --border: #e0e0e0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== Login Screen ===== */
+  #login-screen {
+    flex: 1; display: flex; align-items: center; justify-content: center;
+    padding: 40px 24px;
+  }
+  .login-card {
+    background: var(--card); border-radius: 12px;
+    padding: 40px 36px; width: 100%; max-width: 400px;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 24px rgba(0,0,0,.1);
+  }
+  .login-logo { text-align: center; margin-bottom: 8px; font-size: 36px; }
+  .login-title { text-align: center; font-size: 20px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+  .login-subtitle { text-align: center; font-size: 13px; color: var(--muted); margin-bottom: 28px; }
+  .login-field { margin-bottom: 16px; }
+  .login-field label {
+    display: block; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .login-field input {
+    width: 100%; padding: 11px 13px;
+    border: 1px solid var(--border); border-radius: 7px;
+    font-size: 14px; color: var(--text); font-family: inherit;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .login-field input:focus {
+    outline: none; border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(21,101,192,.12);
+  }
+  .btn-login {
+    width: 100%; padding: 13px;
+    background: var(--primary); color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer; margin-top: 8px;
+    transition: background .2s;
+  }
+  .btn-login:hover { background: var(--primary-dark); }
+  .login-note {
+    text-align: center; font-size: 11px; color: var(--muted);
+    margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  #onboard-screen { display: none; }
+
+  /* Header */
+  .app-header {
+    background: linear-gradient(135deg, #0d47a1, #1565c0);
+    color: #fff;
+    padding: 0 32px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 6px rgba(0,0,0,.25);
+  }
+  .app-header .brand { display: flex; align-items: center; gap: 12px; }
+  .app-header .brand-icon { font-size: 22px; }
+  .app-header .brand-name { font-size: 17px; font-weight: 700; letter-spacing: .3px; }
+  .app-header .brand-sep { opacity: .4; margin: 0 4px; }
+  .app-header .brand-sub { font-size: 13px; opacity: .8; }
+  .app-header .header-badge {
+    background: rgba(255,255,255,.15);
+    font-size: 11px; padding: 4px 10px;
+    border-radius: 12px; letter-spacing: .3px;
+  }
+
+  /* Main */
+  main {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 24px;
+  }
+  .form-wrapper { width: 100%; max-width: 600px; }
+
+  /* Intro */
+  .intro-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .intro-card .intro-icon { font-size: 32px; flex-shrink: 0; }
+  .intro-card h2 { font-size: 16px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+  .intro-card p { font-size: 13px; color: var(--muted); line-height: 1.55; }
+
+  /* Tabs */
+  .tabs {
+    display: flex; gap: 0; margin-bottom: 24px;
+    border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; background: var(--card);
+  }
+  .tab-btn {
+    flex: 1; padding: 13px 16px;
+    background: none; border: none;
+    font-size: 13px; font-weight: 600; color: var(--muted);
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background .15s, color .15s;
+    border-right: 1px solid var(--border);
+  }
+  .tab-btn:last-child { border-right: none; }
+  .tab-btn:hover:not(.active) { background: #f8fafc; color: var(--text); }
+  .tab-btn.active { background: #e3f2fd; color: var(--primary); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Elements list (read-only) — card grid */
+  .elements-wrapper {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .elements-wrapper-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    background: #f8fafc;
+  }
+  .elements-wrapper-header h3 { font-size: 15px; font-weight: 700; color: var(--primary); }
+  .elements-wrapper-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .elements-loading { padding: 32px; text-align: center; font-size: 13px; color: var(--muted); }
+  .elements-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px; padding: 16px;
+  }
+  .el-card {
+    background: #f8fafc; border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 12px;
+    transition: box-shadow .15s, border-color .15s;
+  }
+  .el-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); border-color: #94a3b8; }
+  .el-card-name { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .el-card-desc { font-size: 11px; color: var(--muted); line-height: 1.4; }
+  .elements-note {
+    padding: 10px 20px; font-size: 11px; color: var(--muted);
+    border-top: 1px solid var(--border); background: #fefce8;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  /* Steps */
+  .steps {
+    display: flex;
+    gap: 0;
+    margin-bottom: 24px;
+  }
+  .step {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    position: relative;
+  }
+  .step:first-child { border-radius: 8px 0 0 8px; }
+  .step:last-child { border-radius: 0 8px 8px 0; }
+  .step:not(:last-child) { border-right: none; }
+  .step.active { background: #e3f2fd; border-color: var(--primary); color: var(--primary); font-weight: 600; }
+  .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--border); color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .step.active .step-num { background: var(--primary); color: #fff; }
+
+  /* Form card */
+  .form-card {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 28px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .form-card h3 {
+    font-size: 16px; font-weight: 700;
+    color: var(--primary); margin-bottom: 6px;
+  }
+  .form-card .form-subtitle {
+    font-size: 13px; color: var(--muted);
+    margin-bottom: 24px; line-height: 1.5;
+  }
+
+  .field-group { margin-bottom: 18px; }
+  .field-group label {
+    display: block; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .field-group label .req { color: var(--danger); }
+  .field-group input, .field-group textarea {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: 6px;
+    font-size: 14px; color: var(--text);
+    transition: border-color .2s, box-shadow .2s;
+    font-family: inherit;
+  }
+  .field-group input:focus, .field-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(21,101,192,.12);
+  }
+  .field-group .hint { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  .grant-types {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px;
+  }
+  .grant-tag {
+    background: #e3f2fd; color: var(--primary);
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px; border-radius: 12px;
+  }
+
+  .form-actions { margin-top: 28px; display: flex; gap: 12px; align-items: center; }
+  .btn-submit {
+    flex: 1; padding: 14px;
+    background: var(--primary); color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 15px; font-weight: 700;
+    cursor: pointer; transition: background .2s, opacity .2s;
+    letter-spacing: .2px;
+  }
+  .btn-submit:hover:not(:disabled) { background: var(--primary-dark); }
+  .btn-submit:disabled { opacity: .55; cursor: not-allowed; }
+  .btn-cancel {
+    padding: 14px 20px; background: #f5f5f5; color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s; text-decoration: none;
+    display: inline-flex; align-items: center;
+  }
+  .btn-cancel:hover { background: var(--border); }
+
+  /* Error banner */
+  .error-banner {
+    display: none;
+    background: #fbe9e7; border: 1px solid #ef9a9a;
+    border-radius: 8px; padding: 12px 16px;
+    font-size: 13px; color: var(--danger);
+    margin-top: 16px;
+  }
+  .error-banner.show { display: flex; gap: 8px; align-items: flex-start; }
+
+  /* ===== Modal ===== */
+  .modal-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.55);
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 14px;
+    width: 100%; max-width: 480px;
+    padding: 32px 28px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+    animation: modalPop .22s cubic-bezier(.22,.61,.36,1) both;
+  }
+  @keyframes modalPop {
+    from { opacity: 0; transform: scale(.93) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  .modal-icon { font-size: 40px; text-align: center; margin-bottom: 12px; }
+  .modal h3 { text-align: center; font-size: 20px; font-weight: 700; margin-bottom: 6px; color: var(--text); }
+  .modal .modal-sub {
+    text-align: center; font-size: 13px; color: var(--muted);
+    margin-bottom: 24px; line-height: 1.5;
+  }
+  .modal .warn-note {
+    background: #fff8e1; border: 1px solid #ffe082;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 12px; color: #5d4037;
+    margin-bottom: 20px; display: flex; gap: 8px; align-items: center;
+  }
+
+  .cred-block { margin-bottom: 16px; }
+  .cred-block label {
+    display: block; font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .5px;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .cred-row { display: flex; gap: 8px; align-items: center; }
+  .cred-row input {
+    flex: 1; padding: 10px 12px; border: 1px solid var(--border);
+    border-radius: 6px; font-size: 13px; font-family: 'Courier New', monospace;
+    color: var(--text); background: #fafafa;
+  }
+  .btn-icon {
+    padding: 9px 12px; background: #f5f5f5; border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer; font-size: 14px;
+    transition: background .15s; white-space: nowrap; font-weight: 600;
+    font-size: 12px; color: var(--muted);
+  }
+  .btn-icon:hover { background: var(--border); color: var(--text); }
+  .btn-icon.copied { background: #e8f5e9; border-color: #a5d6a7; color: var(--success); }
+
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+  .btn-modal-primary {
+    flex: 1; padding: 13px; background: var(--primary); color: #fff;
+    border: none; border-radius: 8px; font-size: 14px; font-weight: 700;
+    cursor: pointer; transition: background .15s;
+  }
+  .btn-modal-primary:hover { background: var(--primary-dark); }
+  .btn-modal-secondary {
+    padding: 13px 20px; background: #f5f5f5; color: var(--text);
+    border: 1px solid var(--border); border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-modal-secondary:hover { background: var(--border); }
+
+  /* Footer */
+  footer {
+    text-align: center; padding: 16px;
+    font-size: 11px; color: var(--muted);
+    border-top: 1px solid var(--border);
+    background: var(--card);
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-icon">🗄️</span>
+    <span class="brand-name">Digital Locker</span>
+    <span class="brand-sep">|</span>
+    <span class="brand-sub" id="header-sub">Partner Portal</span>
+  </div>
+  <span class="header-badge">Bank Officer Access</span>
+</header>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🗄️</div>
+    <div class="login-title">Digital Locker</div>
+    <div class="login-subtitle">Admin Portal — Third Party Onboarding</div>
+
+    <div class="login-field">
+      <label>Username</label>
+      <input type="text" id="login-username" value="bank.officer@nationalbank.lk">
+    </div>
+    <div class="login-field">
+      <label>Password</label>
+      <input type="password" id="login-password" value="Admin@123">
+    </div>
+
+    <button class="btn-login" onclick="doLogin()">Sign In</button>
+
+    <p class="login-note">Demo system — any credentials are accepted</p>
+  </div>
+</div>
+
+<!-- Onboarding Screen (shown after login) -->
+<div id="onboard-screen">
+<main>
+  <div class="form-wrapper">
+
+    <!-- Tab navigation -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-elements-btn" onclick="switchTab('elements')">
+        📋 Available Data Elements
+      </button>
+      <button class="tab-btn" id="tab-register-btn" onclick="switchTab('register')">
+        🏦 Register Application
+      </button>
+    </div>
+
+    <!-- Tab 1: Available Data Elements -->
+    <div class="tab-content active" id="tab-elements">
+      <div class="elements-wrapper">
+        <div class="elements-wrapper-header">
+          <h3>Digital Locker — Defined Data Elements</h3>
+          <p>Personal data elements the Digital Locker holds on behalf of citizens. You can request consent for any subset.</p>
+        </div>
+        <div id="elements-loading" class="elements-loading">Loading elements…</div>
+        <div class="elements-grid" id="elements-grid" style="display:none"></div>
+        <div class="elements-note" id="elements-note" style="display:none">
+          ℹ️ Defined by the Digital Locker operator. Read-only for bank officers.
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: Register Application -->
+    <div class="tab-content" id="tab-register">
+
+      <div class="intro-card">
+        <div class="intro-icon">🏦</div>
+        <div>
+          <h2>Register Your Application</h2>
+          <p>Before your bank can request citizen data through the Digital Locker, it must be registered as an authorised third-party. Fill in your application details below to receive a <strong>Client ID and Client Secret</strong> — use these credentials to activate the Bank Portal.</p>
+        </div>
+      </div>
+
+      <div class="steps">
+        <div class="step active"><div class="step-num">1</div>Register App</div>
+        <div class="step"><div class="step-num">2</div>Receive Credentials</div>
+        <div class="step"><div class="step-num">3</div>Use in Bank Portal</div>
+      </div>
+
+      <div class="form-card">
+        <h3>Application Details</h3>
+        <p class="form-subtitle">Fill in the details of the bank or third-party application. Sample values are pre-filled for the demo.</p>
+
+        <div class="field-group">
+          <label>Application / Bank Name <span class="req">*</span></label>
+          <input type="text" id="app-name" value="National Bank KYC Portal">
+        </div>
+
+        <div class="field-group">
+          <label>Description</label>
+          <input type="text" id="app-desc" value="National Bank Branch Portal – KYC Consent Demo">
+        </div>
+
+        <div class="field-group">
+          <label>Redirect URL <span class="req">*</span></label>
+          <input type="text" id="redirect-url" value="http://localhost:3010/auth-callback.html">
+          <p class="hint">OAuth callback URL where the authorization code will be sent.</p>
+        </div>
+
+        <div class="field-group">
+          <label>JWKS URL</label>
+          <input type="text" id="jwks-url" value="https://keystore.openbankingtest.org.uk/0015800001HQQrZAAX/0015800001HQQrZAAX.jwks">
+          <p class="hint">Public key endpoint used by the Digital Locker to verify signed JWT request objects.</p>
+        </div>
+
+        <div class="field-group">
+          <label>Grant Types</label>
+          <div class="grant-types">
+            <span class="grant-tag">authorization_code</span>
+            <span class="grant-tag">implicit</span>
+            <span class="grant-tag">refresh_token</span>
+            <span class="grant-tag">CIBA</span>
+          </div>
+          <p class="hint">Fixed for this demo — includes Client-Initiated Backchannel Authentication (CIBA) for push consent flows.</p>
+        </div>
+
+        <div id="error-banner" class="error-banner">
+          <span>⚠️</span>
+          <span id="error-text">An error occurred.</span>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn-submit" id="btn-submit" onclick="submitOnboard()">
+            Register Application
+          </button>
+          <a href="/" class="btn-cancel">← Back to Hub</a>
+        </div>
+      </div>
+
+    </div><!-- /tab-register -->
+
+  </div>
+</main>
+
+<!-- Success Modal -->
+<div id="success-modal" class="modal-backdrop">
+  <div class="modal">
+    <div class="modal-icon">✅</div>
+    <h3>Application Registered</h3>
+    <p class="modal-sub">Your application has been successfully registered with the Digital Locker. Copy the credentials below.</p>
+
+    <div class="warn-note">
+      ⚠️ The Client Secret is shown only once. Save it now before closing this dialog.
+    </div>
+
+    <div class="cred-block">
+      <label>Client ID</label>
+      <div class="cred-row">
+        <input id="result-client-id" type="text" readonly>
+        <button class="btn-icon" id="copy-id-btn" onclick="copyField('result-client-id', 'copy-id-btn')">Copy</button>
+      </div>
+    </div>
+
+    <div class="cred-block">
+      <label>Client Secret</label>
+      <div class="cred-row">
+        <input id="result-client-secret" type="password" readonly>
+        <button class="btn-icon" id="toggle-secret-btn" onclick="toggleSecret()">Show</button>
+        <button class="btn-icon" id="copy-secret-btn" onclick="copyField('result-client-secret', 'copy-secret-btn')">Copy</button>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal-primary" onclick="goToBankPortal()">Go to Bank Portal →</button>
+      <button class="btn-modal-secondary" onclick="closeModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /onboard-screen -->
+
+<footer>
+  Digital Locker — Consent Management Platform &nbsp;|&nbsp; Demo System — Not for Production Use
+</footer>
+
+<script>
+  var registeredClientId = '';
+  var registeredClientSecret = '';
+
+  var EL_DESCRIPTIONS = {
+    first_name: 'Legal given name',
+    last_name: 'Legal family name',
+    date_of_birth: 'Date of birth',
+    gender: 'Self-reported gender',
+    nationality: 'Country of citizenship',
+    middle_name: 'Middle name(s)',
+    place_of_birth: 'City / country of birth',
+    marital_status: 'Current marital status',
+    tax_id: 'National tax ID number',
+    source_of_funds: 'Primary income source',
+    contact: 'Phone, email & address',
+    identifiers: 'Passport, NIC & documents',
+    employment: 'Employer & occupation'
+  };
+
+  function switchTab(tab) {
+    document.getElementById('tab-elements').classList.toggle('active', tab === 'elements');
+    document.getElementById('tab-register').classList.toggle('active', tab === 'register');
+    document.getElementById('tab-elements-btn').classList.toggle('active', tab === 'elements');
+    document.getElementById('tab-register-btn').classList.toggle('active', tab === 'register');
+    document.getElementById('header-sub').textContent =
+      tab === 'elements' ? 'Available Data Elements' : 'Register Application';
+    if (tab === 'elements') loadElements();
+  }
+
+  async function loadElements() {
+    var loading = document.getElementById('elements-loading');
+    var grid = document.getElementById('elements-grid');
+    var note = document.getElementById('elements-note');
+    loading.style.display = 'block';
+    grid.style.display = 'none';
+    note.style.display = 'none';
+
+    try {
+      var r = await fetch('/api/elements');
+      var data = await r.json();
+      var list = data.data || data || [];
+
+      if (list.length === 0) {
+        loading.textContent = 'No elements registered yet. Run the Admin Console first to register data elements.';
+        return;
+      }
+
+      grid.innerHTML = list.map(function(el) {
+        var displayName = el.displayName || el.description || el.name || '—';
+        var desc = EL_DESCRIPTIONS[el.name] || el.description || '';
+        return '<div class="el-card">' +
+          '<div class="el-card-name">' + displayName + '</div>' +
+          (desc ? '<div class="el-card-desc">' + desc + '</div>' : '') +
+          '</div>';
+      }).join('');
+
+      loading.style.display = 'none';
+      grid.style.display = 'grid';
+      note.style.display = 'flex';
+    } catch (e) {
+      loading.textContent = 'Failed to load elements: ' + e.message;
+    }
+  }
+
+  async function submitOnboard() {
+    const appName    = document.getElementById('app-name').value.trim();
+    const appDesc    = document.getElementById('app-desc').value.trim();
+    const redirectUrl = document.getElementById('redirect-url').value.trim();
+    const jwksUrl    = document.getElementById('jwks-url').value.trim();
+
+    if (!appName || !redirectUrl) {
+      showError('Application Name and Redirect URL are required.');
+      return;
+    }
+
+    hideError();
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'Registering…';
+
+    try {
+      const resp = await fetch('/api/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          appName,
+          description: appDesc,
+          callbackURLs: [redirectUrl],
+          jwksUrl
+        })
+      });
+
+      const data = await resp.json();
+      if (!resp.ok) {
+        showError(data.error || 'Registration failed. Check server logs.');
+        return;
+      }
+
+      registeredClientId     = data.clientId;
+      registeredClientSecret = data.clientSecret;
+
+      document.getElementById('result-client-id').value     = data.clientId;
+      document.getElementById('result-client-secret').value = data.clientSecret;
+      document.getElementById('success-modal').classList.add('show');
+
+      // Advance step indicator
+      document.querySelectorAll('.step').forEach((s, i) => {
+        s.classList.toggle('active', i === 1);
+      });
+
+    } catch (e) {
+      showError('Request failed: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Register Application';
+    }
+  }
+
+  function toggleSecret() {
+    const inp = document.getElementById('result-client-secret');
+    const btn = document.getElementById('toggle-secret-btn');
+    if (inp.type === 'password') {
+      inp.type = 'text';
+      btn.textContent = 'Hide';
+    } else {
+      inp.type = 'password';
+      btn.textContent = 'Show';
+    }
+  }
+
+  function copyField(fieldId, btnId) {
+    const inp = document.getElementById(fieldId);
+    const val = inp.value;
+    navigator.clipboard.writeText(val).then(() => {
+      const btn = document.getElementById(btnId);
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+    }).catch(() => {
+      // Fallback for http contexts
+      inp.select();
+      document.execCommand('copy');
+    });
+  }
+
+  function closeModal() {
+    document.getElementById('success-modal').classList.remove('show');
+  }
+
+  function doLogin() {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('onboard-screen').style.display = 'block';
+    document.getElementById('header-sub').textContent = 'Available Data Elements';
+    loadElements();
+  }
+
+  // Allow pressing Enter on the login form
+  document.getElementById('login-password').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('login-username').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  function goToBankPortal() {
+    // Write directly to localStorage so the new tab picks them up immediately
+    if (registeredClientId && registeredClientSecret) {
+      localStorage.setItem('bank_client_id',     registeredClientId);
+      localStorage.setItem('bank_client_secret', registeredClientSecret);
+    }
+    window.open('/bank-portal/', '_blank');
+  }
+
+  function showError(msg) {
+    const banner = document.getElementById('error-banner');
+    document.getElementById('error-text').textContent = msg;
+    banner.classList.add('show');
+  }
+
+  function hideError() {
+    document.getElementById('error-banner').classList.remove('show');
+  }
+</script>
+</body>
+</html>

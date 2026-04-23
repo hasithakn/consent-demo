@@ -1,14 +1,12 @@
 #!/bin/bash
-# Cleans the MySQL database and re-populates OpenFGC with KYC consent elements and a sample purpose.
+# Resets OpenFGC by wiping the MySQL database and restarting the containers.
+# Consent elements and purposes are NOT auto-created here — create them via
+# Postman as part of the demo flow (Data Fiduciary onboarding step).
 #
-# Clean steps:
+# Steps:
 #   1. Stop mysql and openfgc containers
 #   2. Remove the mysql-data volume (wipes all DB data)
 #   3. Restart mysql and openfgc, wait for them to be healthy
-#
-# Populate steps:
-#   4. Create 13 KYC consent elements
-#   5. Create kyc_verification_purpose with all elements (first_name & last_name mandatory)
 #
 # Usage:
 #   bash scripts/clean-and-populate-openfgc.sh
@@ -27,8 +25,6 @@ OPENFGC_URL="${OPENFGC_URL:-http://localhost:3000}"
 ORG_ID="${ORG_ID:-DEMO-ORG-001}"
 TPP_CLIENT_ID="${TPP_CLIENT_ID:-DEMO-TPP-001}"
 
-ELEMENTS_URL="${OPENFGC_URL}/api/v1/consent-elements"
-PURPOSES_URL="${OPENFGC_URL}/api/v1/consent-purposes"
 
 # ═════════════════════════════════════════════════════════════════════════════
 # CLEAN
@@ -67,95 +63,7 @@ for i in $(seq 1 40); do
   sleep 3
 done
 
-# ═════════════════════════════════════════════════════════════════════════════
-# CONSENT ELEMENTS
-# ═════════════════════════════════════════════════════════════════════════════
-
-echo ""
-echo "[populate] Creating KYC consent elements (org: ${ORG_ID})..."
-
-create_element() {
-  local NAME="$1"
-  local DESCRIPTION="$2"
-  local JSON_PATH="$3"
-
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-    -X POST "${ELEMENTS_URL}" \
-    -H "Content-Type: application/json" \
-    -H "org-id: ${ORG_ID}" \
-    -d "[{
-      \"name\": \"${NAME}\",
-      \"type\": \"resource-field\",
-      \"description\": \"${DESCRIPTION}\",
-      \"properties\": {
-        \"jsonPath\": \"${JSON_PATH}\",
-        \"resourcePath\": \"/user/{nic}\"
-      }
-    }]")
-
-  if [ "$HTTP_STATUS" = "201" ]; then
-    echo "[populate]   created $NAME"
-  else
-    echo "[populate]   ERROR creating element $NAME (HTTP $HTTP_STATUS)"
-    exit 1
-  fi
-}
-
-#          NAME               DESCRIPTION              JSON_PATH
-create_element "first_name"      "First Name"             '$.person.first_name'
-create_element "last_name"       "Last Name"              '$.person.last_name'
-create_element "date_of_birth"   "Date of Birth"          '$.person.date_of_birth'
-create_element "gender"          "Gender"                 '$.person.gender'
-create_element "nationality"     "Nationality"            '$.person.nationality'
-create_element "middle_name"     "Middle Name"            '$.person.middle_name'
-create_element "place_of_birth"  "Place of Birth"         '$.person.place_of_birth'
-create_element "marital_status"  "Marital Status"         '$.person.marital_status'
-create_element "tax_id"          "Tax ID"                 '$.person.tax_id'
-create_element "source_of_funds" "Source of Funds"        '$.person.source_of_funds'
-create_element "contact"         "Contact Details"        '$.person.contact'
-create_element "identifiers"     "Identity Documents"     '$.person.identifiers'
-create_element "employment"      "Employment Details"     '$.person.employment'
-
-# ═════════════════════════════════════════════════════════════════════════════
-# PURPOSE
-# ═════════════════════════════════════════════════════════════════════════════
-
-echo ""
-echo "[populate] Creating KYC purpose (org: ${ORG_ID})..."
-
-PURPOSE_NAME="kyc_verification_purpose"
-
-HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-  -X POST "${PURPOSES_URL}" \
-  -H "Content-Type: application/json" \
-  -H "org-id: ${ORG_ID}" \
-  -H "TPP-client-id: ${TPP_CLIENT_ID}" \
-  -d "{
-    \"name\": \"${PURPOSE_NAME}\",
-    \"description\": \"Identity verification for KYC compliance\",
-    \"elements\": [
-      { \"name\": \"first_name\",      \"isMandatory\": true  },
-      { \"name\": \"last_name\",       \"isMandatory\": true  },
-      { \"name\": \"date_of_birth\",   \"isMandatory\": false },
-      { \"name\": \"gender\",          \"isMandatory\": false },
-      { \"name\": \"nationality\",     \"isMandatory\": false },
-      { \"name\": \"middle_name\",     \"isMandatory\": false },
-      { \"name\": \"place_of_birth\",  \"isMandatory\": false },
-      { \"name\": \"marital_status\",  \"isMandatory\": false },
-      { \"name\": \"tax_id\",          \"isMandatory\": false },
-      { \"name\": \"source_of_funds\", \"isMandatory\": false },
-      { \"name\": \"contact\",         \"isMandatory\": false },
-      { \"name\": \"identifiers\",     \"isMandatory\": false },
-      { \"name\": \"employment\",      \"isMandatory\": false }
-    ]
-  }")
-
-if [ "$HTTP_STATUS" = "201" ]; then
-  echo "[populate]   created $PURPOSE_NAME"
-else
-  echo "[populate]   ERROR creating purpose $PURPOSE_NAME (HTTP $HTTP_STATUS)"
-  exit 1
-fi
+# Consent elements and purposes are created via Postman as part of the demo flow.
 
 # # ═════════════════════════════════════════════════════════════════════════════
 # # SAMPLE CONSENT
@@ -214,8 +122,8 @@ fi
 # fi
 
 echo ""
-echo "[populate] Done. OpenFGC is clean and populated."
+echo "[reset] Done. OpenFGC is clean and ready."
+echo "  Next: use Postman to create consent elements and purposes."
 echo ""
 echo "  Org ID      : ${ORG_ID}"
 echo "  TPP Client  : ${TPP_CLIENT_ID}"
-echo "  Consent ID  : ${CONSENT_ID}"

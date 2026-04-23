@@ -33,52 +33,10 @@ else
   echo "[is-setup] Test user john123 already exists."
 fi
 
-# ── 2. Create / configure IS application ────────────────────────────────────
-echo "[is-setup] Checking for existing 'National Bank KYC Portal' app..."
-if curl -sk -u admin:admin "${IS_BASE}/api/server/v1/applications?limit=50" \
-    | grep -q '"National Bank KYC Portal"'; then
-  echo "[is-setup] Application already exists, skipping creation."
-else
-  echo "[is-setup] Creating application..."
-  HTTP_CODE=$(curl -sk -u admin:admin -X POST \
-    "${IS_BASE}/api/server/v1/applications" \
-    -H "Content-Type: application/json" \
-    -d @/setup/is-app-payload.json \
-    -o /dev/null -w "%{http_code}")
-  echo "[is-setup] App create HTTP status: $HTTP_CODE"
-  if [ "$HTTP_CODE" != "201" ] && [ "$HTTP_CODE" != "200" ]; then
-    echo "[is-setup] ERROR: Failed to create application (HTTP $HTTP_CODE)."
-    exit 1
-  fi
-fi
-
-# ── 2b. Set subject claim (Alternate Subject Identifier = username) ───────────
-echo "[is-setup] Configuring subject claim to use username..."
-HTTP_CODE=$(curl -sk -u admin:admin -X PATCH \
-  "${IS_BASE}/api/server/v1/applications/${APP_ID}" \
-  -H "Content-Type: application/json" \
-  -d '{"claimConfiguration":{"dialect":"LOCAL","claimMappings":[{"applicationClaim":"http://wso2.org/claims/username","localClaim":{"uri":"http://wso2.org/claims/username"}}],"requestedClaims":[{"claim":{"uri":"http://wso2.org/claims/username"},"mandatory":true}],"subject":{"claim":{"uri":"http://wso2.org/claims/username"},"includeUserDomain":false,"includeTenantDomain":false,"useMappedLocalSubject":false}}}' \
-  -o /dev/null -w "%{http_code}")
-echo "[is-setup] Subject claim (alternate subject identifier): HTTP $HTTP_CODE"
-
-# ── 3. Log OAuth client credentials ──────────────────────────────────────────
-# Always resolve APP_ID by querying the list — IS returns 201 with empty body
-APP_ID=$(curl -sk -u admin:admin "${IS_BASE}/api/server/v1/applications?limit=50" \
-  | grep -o '"id":"[^"]*","name":"National Bank KYC Portal"' \
-  | grep -o '"id":"[^"]*"' | sed 's/"id":"//;s/"//')
-
-if [ -n "$APP_ID" ]; then
-  OIDC=$(curl -sk -u admin:admin \
-    "${IS_BASE}/api/server/v1/applications/${APP_ID}/inbound-protocols/oidc")
-  CLIENT_ID=$(echo "$OIDC" | grep -o '"clientId":"[^"]*"' | sed 's/"clientId":"//;s/"//')
-  CLIENT_SECRET=$(echo "$OIDC" | grep -o '"clientSecret":"[^"]*"' | sed 's/"clientSecret":"//;s/"//')
-  echo "[is-setup] ┌─ National Bank KYC Portal credentials ──────"
-  echo "[is-setup] │  CLIENT_ID     = ${CLIENT_ID}"
-  echo "[is-setup] │  CLIENT_SECRET = ${CLIENT_SECRET}"
-  echo "[is-setup] └──────────────────────────────────────────────"
-fi
-
-# ── 4. Create 'user:data' API resource ───────────────────────────────────────
+# ── 2. Create 'user:data' API resource ───────────────────────────────────────
+# NOTE: Bank application (IS client) is NO longer created here.
+#       Use the Digital Locker Onboarding Portal (localhost:3010/digital-locker/)
+#       to register the bank app and receive Client ID + Secret via the UI.
 echo "[is-setup] Checking for API resource 'user:data'..."
 # Use name filter to avoid matching 130+ built-in resources
 API_RESOURCE_ID=$(curl -sk -u admin:admin \
@@ -101,32 +59,7 @@ else
 fi
 echo "[is-setup] API resource ID: $API_RESOURCE_ID"
 
-# ── 5. Set application role audience to ORGANIZATION ─────────────────────────
-echo "[is-setup] Setting application role audience to ORGANIZATION..."
-HTTP_CODE=$(curl -sk -u admin:admin -X PATCH \
-  "${IS_BASE}/api/server/v1/applications/${APP_ID}" \
-  -H "Content-Type: application/json" \
-  -d '{"associatedRoles":{"allowedAudience":"ORGANIZATION"}}' \
-  -o /dev/null -w "%{http_code}")
-echo "[is-setup] Role audience update: HTTP $HTTP_CODE"
-
-# ── 6. Authorize API resource in application ──────────────────────────────────
-echo "[is-setup] Checking if API resource is authorized in application..."
-if curl -sk -u admin:admin \
-    "${IS_BASE}/api/server/v1/applications/${APP_ID}/authorized-apis" \
-    | grep -q '"user:data"'; then
-  echo "[is-setup] API resource already authorized in application."
-else
-  echo "[is-setup] Authorizing API resource in application..."
-  HTTP_CODE=$(curl -sk -u admin:admin -X POST \
-    "${IS_BASE}/api/server/v1/applications/${APP_ID}/authorized-apis" \
-    -H "Content-Type: application/json" \
-    -d "{\"id\":\"${API_RESOURCE_ID}\",\"policyIdentifier\":\"RBAC\",\"scopes\":[\"user:data\"]}" \
-    -o /dev/null -w "%{http_code}")
-  echo "[is-setup] API authorized in app: HTTP $HTTP_CODE"
-fi
-
-# ── 7. Resolve org ID (from john's membership in the 'everyone' org role) ──
+# ── 3. Resolve org ID (from john's membership in the 'everyone' org role) ──
 ORG_ID=$(curl -sk -u admin:admin \
   "${IS_BASE}/scim2/Users?filter=userName+eq+john" \
   -H "Accept: application/json" \
@@ -134,7 +67,7 @@ ORG_ID=$(curl -sk -u admin:admin \
   | sed 's/"audienceValue":"//;s/"//')
 echo "[is-setup] Org ID: $ORG_ID"
 
-# ── 8. Create 'consumer' role (org-level) ────────────────────────────────────
+# ── 4. Create 'consumer' role (org-level) ────────────────────────────────────
 echo "[is-setup] Checking for 'consumer' role..."
 if curl -sk -u admin:admin \
     "${IS_BASE}/scim2/v2/Roles?filter=displayName+eq+consumer" \
@@ -155,7 +88,7 @@ ROLE_ID=$(curl -sk -u admin:admin \
   | grep -o '"id":"[^"]*"' | head -1 | sed 's/"id":"//;s/"//')
 echo "[is-setup] Consumer role ID: $ROLE_ID"
 
-# ── 9. Assign 'user:data' permission to 'consumer' role ──────────────────────
+# ── 5. Assign 'user:data' permission to 'consumer' role ──────────────────────
 echo "[is-setup] Assigning user:data permission to consumer role..."
 HTTP_CODE=$(curl -sk -u admin:admin -X PATCH \
   "${IS_BASE}/scim2/v2/Roles/${ROLE_ID}" \
@@ -164,7 +97,7 @@ HTTP_CODE=$(curl -sk -u admin:admin -X PATCH \
   -o /dev/null -w "%{http_code}")
 echo "[is-setup] Permission assign: HTTP $HTTP_CODE"
 
-# ── 10. Assign 'consumer' role to admin and john123 ──────────────────────────
+# ── 6. Assign 'consumer' role to admin and john123 ──────────────────────────
 echo "[is-setup] Resolving user IDs..."
 JOHN_ID=$(curl -sk -u admin:admin \
   "${IS_BASE}/scim2/Users?filter=userName+eq+john" \
@@ -184,7 +117,7 @@ HTTP_CODE=$(curl -sk -u admin:admin -X PATCH \
   -o /dev/null -w "%{http_code}")
 echo "[is-setup] Role assign to users: HTTP $HTTP_CODE"
 
-# ── 11. Apply Digital Locker branding ────────────────────────────────────────
+# ── 7. Apply Digital Locker branding ────────────────────────────────────────
 echo "[is-setup] Applying Digital Locker branding..."
 BRANDING_PAYLOAD=$(cat <<'BEOF'
 {

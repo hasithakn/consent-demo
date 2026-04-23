@@ -52,6 +52,68 @@ body {
 .dot-error { background: var(--danger); }
 @keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
 
+/* ===== Credentials Banner ===== */
+.creds-banner {
+  background: #1c2340;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  font-size: 13px;
+  color: #cfd8dc;
+}
+.creds-summary {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 24px; cursor: pointer;
+  transition: background .15s;
+}
+.creds-summary:hover { background: rgba(255,255,255,.05); }
+.creds-icon { font-size: 15px; }
+.creds-label { font-weight: 600; font-size: 12px; letter-spacing: .3px; color: #b0bec5; }
+.creds-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: .3px;
+}
+.creds-not-set { background: rgba(198,40,40,.25); color: #ef9a9a; }
+.creds-is-set  { background: rgba(46,125,50,.25);  color: #a5d6a7; }
+.creds-spacer  { flex: 1; }
+.creds-onboard-link {
+  font-size: 11px; color: #90caf9; text-decoration: none;
+  opacity: .8; transition: opacity .15s;
+}
+.creds-onboard-link:hover { opacity: 1; text-decoration: underline; }
+.creds-toggle-icon { font-size: 11px; opacity: .6; transition: transform .2s; }
+.creds-banner.open .creds-toggle-icon { transform: rotate(180deg); }
+
+.creds-form {
+  display: none;
+  padding: 0 24px 14px;
+  background: #161b30;
+}
+.creds-banner.open .creds-form { display: block; }
+.creds-inputs {
+  display: flex; align-items: flex-end; gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,.06);
+}
+.creds-field { flex: 1; }
+.creds-field label {
+  display: block; font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: #78909c; margin-bottom: 5px;
+}
+.creds-field input {
+  width: 100%; padding: 8px 10px;
+  background: #1e2640; border: 1px solid rgba(255,255,255,.12);
+  border-radius: 5px; color: #eceff1; font-size: 13px;
+  font-family: 'Courier New', monospace;
+  transition: border-color .2s;
+}
+.creds-field input:focus {
+  outline: none; border-color: #5c6bc0;
+  box-shadow: 0 0 0 2px rgba(92,107,192,.2);
+}
+.creds-field input::placeholder { color: #546e7a; }
+.creds-apply-btn { align-self: flex-end; white-space: nowrap; }
+.btn-small { padding: 8px 18px; font-size: 12px; }
+
 /* Layout */
 .main-layout { display: flex; min-height: calc(100vh - 52px - 32px); }
 
@@ -172,34 +234,29 @@ body {
 .btn-delete:hover { color: #96281b; }
 
 /* Checklist */
-.checklist { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.checklist label {
-  display: flex; align-items: center; gap: 8px;
-  padding: 8px 12px; background: #fafafa; border: 1px solid #eee;
-  border-radius: 4px; font-size: 13px; cursor: pointer;
-  transition: background .15s;
-}
-.checklist label:hover { background: #f0f4ff; }
-.checklist label.mandatory { font-weight: 600; }
-.checklist input[type="checkbox"] { accent-color: var(--brand-mid); }
+.checklist { display: flex; flex-direction: column; gap: 4px; }
 
 /* Element row (checkbox + mandatory/optional dropdown) */
 .element-row {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 12px; background: #fafafa; border: 1px solid #eee;
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px; background: #fafafa; border: 1px solid #eee;
   border-radius: 4px; transition: background .15s;
 }
 .element-row:hover { background: #f0f4ff; }
 .element-check {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 13px; cursor: pointer; flex: 1;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; cursor: pointer; flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.element-check input[type="checkbox"] { accent-color: var(--brand-mid); }
+.element-check input[type="checkbox"] {
+  accent-color: var(--brand-mid);
+  width: 13px; height: 13px; flex-shrink: 0; cursor: pointer;
+}
 .element-type {
-  font-size: 12px; padding: 4px 8px;
+  font-size: 11px; padding: 2px 6px;
   border: 1px solid var(--border); border-radius: 4px;
   background: #fff; color: var(--text-primary);
-  cursor: pointer;
+  cursor: pointer; flex-shrink: 0;
 }
 
 /* Result panel */

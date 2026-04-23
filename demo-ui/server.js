@@ -20,10 +20,44 @@ const OPENFGC_BASE   = process.env.OPENFGC_BASE    || 'http://localhost:3000';
 const ORG_ID         = 'DEMO-ORG-001';
 const REDIRECT_URI   = process.env.REDIRECT_URI    || 'http://localhost:3010/auth-callback.html';
 
-// IS app credentials — set via env vars (printed by start.sh / is/setup.sh logs)
+// IS app credentials — set via env vars or dynamically via /api/apply-credentials
 const CLIENT_ID      = process.env.CLIENT_ID     || '';
 const CLIENT_SECRET  = process.env.CLIENT_SECRET || '';
-const TPP_CLIENT_ID  = CLIENT_ID;
+
+// Active credentials — updated at runtime when credentials are applied via the onboarding portal
+let activeClientId     = CLIENT_ID;
+let activeClientSecret = CLIENT_SECRET;
+
+// Conditional auth script embedded here (same content as is/is-conditional-script.js)
+const CIBA_CONDITIONAL_SCRIPT = `var isCiba;
+var isCibaWebLink;
+
+function onLoginRequest(context) {
+    var responseType = context.request.params.response_type[0];
+    var CIBAWebLinkParam = context.request.params.ciba_web_auth_link;
+
+    if (responseType.indexOf("cibaAuthCode") >= 0) {
+        isCiba = true;
+    } else {
+        isCiba = false;
+    }
+
+    if (CIBAWebLinkParam != null) {
+        isCibaWebLink = true;
+    } else {
+        isCibaWebLink = false;
+    }
+
+    if (!isCiba) {
+        executeStep(1);
+    } else {
+        if (isCibaWebLink) {
+            executeStep(1);
+        } else {
+            executeStep(2);
+        }
+    }
+}`;
 
 // ----- Signing key config (rotate by updating these env vars) -----
 const SIGNING_KEY_PATH = process.env.SIGNING_KEY_PATH || path.join(__dirname, 'signing.key');
@@ -67,19 +101,20 @@ function setup() {
   }
   PRIVATE_KEY = fs.readFileSync(SIGNING_KEY_PATH, 'utf8');
 
-  if (!CLIENT_ID || !CLIENT_SECRET) {
-    console.error('[Setup] FATAL: CLIENT_ID and CLIENT_SECRET env vars are required');
-    process.exit(1);
+  if (!activeClientId || !activeClientSecret) {
+    console.warn('[Setup] No CLIENT_ID/CLIENT_SECRET — server ready, waiting for credentials.');
+    console.warn('[Setup] Use the Digital Locker Onboarding Portal to register and apply credentials.');
+    return; // setupComplete stays false; bank portal will poll until credentials are applied
   }
 
   setupComplete = true;
-  console.log(`[Setup] Ready — client_id: ${CLIENT_ID}, kid: ${SIGNING_KID}`);
+  console.log(`[Setup] Ready — client_id: ${activeClientId}, kid: ${SIGNING_KID}`);
 }
 
 // ===== Consent helpers =====
 
 async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
-  const headers = { 'org-id': ORG_ID, 'TPP-client-id': TPP_CLIENT_ID, 'Content-Type': 'application/json' };
+  const headers = { 'org-id': ORG_ID, 'TPP-client-id': activeClientId, 'Content-Type': 'application/json' };
 
   const mandatorySet = new Set(mandatoryElements || CONSENT_ELEMENTS.filter(e => e.mandatory).map(e => e.name));
   const requestedElements = selectedElements
@@ -91,7 +126,7 @@ async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
   const purposeBody = {
     name: purposeName,
     description: 'KYC data access for bank account opening',
-    clientId: TPP_CLIENT_ID,
+    clientId: activeClientId,
     elements: requestedElements.map(e => ({ name: e.name, isMandatory: mandatorySet.has(e.name) }))
   };
   console.log(`[OpenFGC] POST /api/v1/consent-purposes — name=${purposeName}, elements=${requestedElements.map(e=>e.name).join(',')}`);
@@ -109,7 +144,7 @@ async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
   // Create consent record
   const consentBody = {
     type: 'kyc',
-    clientId: TPP_CLIENT_ID,
+    clientId: activeClientId,
     recurringIndicator: false,
     validityTime: 0, frequency: 0, dataAccessValidityDuration: 0,
     purposes: [{ name: purposeName, elements: requestedElements.map(e => ({ name: e.name, isUserApproved: false })) }],
@@ -132,7 +167,7 @@ async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
 function createCIBARequestJWT(consentId) {
   const now = Math.floor(Date.now() / 1000);
   return jwt.sign({
-    iss: CLIENT_ID, iat: now, exp: now + 1500,
+    iss: activeClientId, iat: now, exp: now + 1500,
     aud: `${IS_PUBLIC_BASE}/oauth2/token`,
     binding_message: 'KYCAccess',
     login_hint: 'john',
@@ -140,7 +175,7 @@ function createCIBARequestJWT(consentId) {
     nbf: now - 2000,
     jti: `jti-${uuidv4()}`,
     claims: { id_token: { intent_id: { value: consentId, essential: true } } },
-    client_id: CLIENT_ID,
+    client_id: activeClientId,
     redirect_uri: REDIRECT_URI
   }, PRIVATE_KEY, { algorithm: 'PS256', header: { kid: SIGNING_KID, alg: 'PS256' } });
 }
@@ -148,7 +183,7 @@ function createCIBARequestJWT(consentId) {
 async function saveConsentAttribute(consentId, key, value) {
   const r = await fetch(`${OPENFGC_BASE}/api/v1/consents/${consentId}`, {
     method: 'PUT',
-    headers: { 'org-id': ORG_ID, 'TPP-client-id': TPP_CLIENT_ID, 'Content-Type': 'application/json' },
+    headers: { 'org-id': ORG_ID, 'TPP-client-id': activeClientId, 'Content-Type': 'application/json' },
     body: JSON.stringify({ attributes: { [key]: value } })
   });
   if (!r.ok) console.error(`[Consent] Failed to save attribute ${key}:`, r.status, await r.text());
@@ -157,12 +192,12 @@ async function saveConsentAttribute(consentId, key, value) {
 async function initiateCIBA(consentId) {
   console.log(`[CIBA] Initiating CIBA for consentId=${consentId}`);
   const cibaJwt = createCIBARequestJWT(consentId);
-  console.log(`[CIBA] POST ${IS_BASE}/oauth2/ciba — client_id=${CLIENT_ID}`);
+  console.log(`[CIBA] POST ${IS_BASE}/oauth2/ciba — client_id=${activeClientId}`);
   const r = await apiFetch(`${IS_BASE}/oauth2/ciba`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: 'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
+      Authorization: 'Basic ' + Buffer.from(`${activeClientId}:${activeClientSecret}`).toString('base64')
     },
     body: `request=${encodeURIComponent(cibaJwt)}`
   });
@@ -183,7 +218,7 @@ async function initiateCIBA(consentId) {
 
 function buildWebAuthLink(consentId, authReqId) {
   const params = new URLSearchParams({
-    binding_message: 'KYCAccess', client_id: CLIENT_ID, nonce: authReqId,
+    binding_message: 'KYCAccess', client_id: activeClientId, nonce: authReqId,
     response_type: 'cibaAuthCode', scope: 'openid user:data',
     intent_id: consentId, redirect_uri: REDIRECT_URI,
     ciba_web_auth_link: 'true', login_hint: 'john', prompt: 'consent'
@@ -198,7 +233,7 @@ async function pollForToken(authReqId) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      Authorization: 'Basic ' + Buffer.from(`${CLIENT_ID}:${CLIENT_SECRET}`).toString('base64')
+      Authorization: 'Basic ' + Buffer.from(`${activeClientId}:${activeClientSecret}`).toString('base64')
     },
     body: `grant_type=urn%3Aopenid%3Aparams%3Agrant-type%3Aciba&auth_req_id=${encodeURIComponent(authReqId)}`
   });
@@ -320,7 +355,22 @@ app.get('/api/log-callback', (req, res) => {
 });
 
 app.get('/api/status', (_req, res) => {
-  res.json({ ready: setupComplete, clientId: CLIENT_ID ? CLIENT_ID.substring(0, 8) + '...' : null });
+  res.json({ ready: setupComplete, clientId: activeClientId ? activeClientId.substring(0, 8) + '...' : null });
+});
+
+// Apply credentials from the onboarding portal (or from localStorage on bank portal load)
+app.post('/api/apply-credentials', (req, res) => {
+  const { clientId, clientSecret } = req.body;
+  if (!clientId || !clientSecret) return res.status(400).json({ error: 'clientId and clientSecret are required' });
+  activeClientId     = clientId;
+  activeClientSecret = clientSecret;
+  if (!setupComplete) {
+    setupComplete = true;
+    console.log(`[Credentials] Applied — client_id: ${clientId.substring(0, 8)}... — server now ready`);
+  } else {
+    console.log(`[Credentials] Updated — client_id: ${clientId.substring(0, 8)}...`);
+  }
+  res.json({ ok: true });
 });
 
 app.get('/api/config', (_req, res) => {
@@ -462,11 +512,267 @@ app.put('/api/consents/:id/revoke', async (req, res) => {
   }
 });
 
+// ===== Admin Portal — Consent element management =====
+
+const ELEMENT_DEFINITIONS = [
+  { name: 'first_name',      displayName: 'First Name',          description: 'First Name',          jsonPath: '$.person.first_name',      resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'last_name',       displayName: 'Last Name',           description: 'Last Name',           jsonPath: '$.person.last_name',       resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'date_of_birth',   displayName: 'Date of Birth',       description: 'Date of Birth',       jsonPath: '$.person.date_of_birth',   resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'gender',          displayName: 'Gender',              description: 'Gender',              jsonPath: '$.person.gender',          resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'nationality',     displayName: 'Nationality',         description: 'Nationality',         jsonPath: '$.person.nationality',     resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'middle_name',     displayName: 'Middle Name',         description: 'Middle Name',         jsonPath: '$.person.middle_name',     resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'place_of_birth',  displayName: 'Place of Birth',      description: 'Place of Birth',      jsonPath: '$.person.place_of_birth',  resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'marital_status',  displayName: 'Marital Status',      description: 'Marital Status',      jsonPath: '$.person.marital_status',  resourcePath: '/user/{nic}', category: 'Identity' },
+  { name: 'tax_id',          displayName: 'Tax ID',              description: 'Tax ID',              jsonPath: '$.person.tax_id',          resourcePath: '/user/{nic}', category: 'Financial' },
+  { name: 'source_of_funds', displayName: 'Source of Funds',     description: 'Source of Funds',     jsonPath: '$.person.source_of_funds', resourcePath: '/user/{nic}', category: 'Financial' },
+  { name: 'contact',         displayName: 'Contact Details',     description: 'Contact Details',     jsonPath: '$.person.contact',         resourcePath: '/user/{nic}', category: 'Contact' },
+  { name: 'identifiers',     displayName: 'Identity Documents',  description: 'Identity Documents',  jsonPath: '$.person.identifiers',     resourcePath: '/user/{nic}', category: 'Documents' },
+  { name: 'employment',      displayName: 'Employment Details',  description: 'Employment Details',  jsonPath: '$.person.employment',      resourcePath: '/user/{nic}', category: 'Employment' },
+];
+
+// Fetch all consent elements from OpenFGC
+app.get('/api/elements', async (_req, res) => {
+  try {
+    const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-elements?limit=100`, {
+      headers: { 'org-id': ORG_ID }
+    });
+    if (!r.ok) return res.status(r.status).json({ error: await r.text() });
+    const data = await r.json();
+    res.json(data);
+  } catch (e) {
+    console.error('[Elements] Fetch error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Create all 13 consent elements in OpenFGC (idempotent — skips existing by name)
+app.post('/api/create-elements', async (_req, res) => {
+  const headers = { 'Content-Type': 'application/json', 'org-id': ORG_ID };
+  const results = [];
+
+  // Fetch existing elements to avoid duplicates
+  let existing = [];
+  try {
+    const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-elements?limit=100`, { headers });
+    if (r.ok) {
+      const d = await r.json();
+      existing = (d.data || d || []);
+    }
+  } catch (e) { /* proceed */ }
+
+  const existingByName = {};
+  existing.forEach(el => { existingByName[el.name] = el; });
+
+  // Collect elements that need to be created
+  const toCreate = ELEMENT_DEFINITIONS.filter(def => !existingByName[def.name]);
+  const alreadyExist = ELEMENT_DEFINITIONS.filter(def => !!existingByName[def.name]);
+
+  alreadyExist.forEach(def => {
+    console.log(`[Create-Elements] "${def.name}" already exists — id=${existingByName[def.name].id}`);
+    results.push({ name: def.name, id: existingByName[def.name].id, status: 'existing' });
+  });
+
+  if (toCreate.length > 0) {
+    try {
+      // API expects an array — type must be 'resource-field', paths inside properties
+      const payload = toCreate.map(def => ({
+        name: def.name,
+        type: 'resource-field',
+        description: def.description,
+        properties: { jsonPath: def.jsonPath, resourcePath: def.resourcePath }
+      }));
+      console.log(`[Create-Elements] POSTing ${toCreate.length} new elements as array...`);
+      const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-elements`, {
+        method: 'POST', headers, body: JSON.stringify(payload)
+      });
+      const text = await r.text();
+      if (r.ok) {
+        let created; try { created = JSON.parse(text); } catch(e) { created = []; }
+        // Response may be an array or a single object
+        const createdList = Array.isArray(created) ? created : [created];
+        const idByName = {};
+        createdList.forEach(el => { if (el.name) idByName[el.name] = el.id; });
+        toCreate.forEach(def => {
+          const id = idByName[def.name] || null;
+          console.log(`[Create-Elements] "${def.name}" created — id=${id}`);
+          results.push({ name: def.name, id, status: 'created' });
+        });
+      } else {
+        console.error(`[Create-Elements] Batch create failed (HTTP ${r.status}): ${text}`);
+        toCreate.forEach(def => results.push({ name: def.name, status: 'error', error: text }));
+      }
+    } catch (e) {
+      toCreate.forEach(def => results.push({ name: def.name, status: 'error', error: e.message }));
+    }
+  }
+
+  res.json({ results, definitions: ELEMENT_DEFINITIONS });
+});
+
+// ===== Onboarding Portal — Register IS application =====
+// Mirrors the exact steps performed by is/setup.sh (steps 2–6):
+//   2.  Create the IS application with CIBA grant + conditional auth script
+//   2b. Configure subject claim to use username
+//   3.  Resolve APP_ID and fetch clientId / clientSecret from OIDC inbound config
+//   4.  Ensure the 'KYC User Data' API resource exists (scope: user:data)
+//   5.  Set application role audience to ORGANIZATION
+//   6.  Authorize the API resource in the application
+
+app.post('/api/onboard', async (req, res) => {
+  const { appName, description, callbackURLs, jwksUrl } = req.body;
+  const name      = (appName || '').trim() || 'National Bank KYC Portal';
+  const desc      = (description || '').trim() || 'National Bank Branch Portal – KYC Consent Demo';
+  const callbacks = Array.isArray(callbackURLs) ? callbackURLs : [callbackURLs || 'http://localhost:3010/auth-callback.html'];
+  const jwks      = (jwksUrl || '').trim() || 'https://keystore.openbankingtest.org.uk/0015800001HQQrZAAX/0015800001HQQrZAAX.jwks';
+
+  const adminAuth = 'Basic ' + Buffer.from('admin:admin').toString('base64');
+  const isHdrs = { 'Content-Type': 'application/json', Authorization: adminAuth };
+
+  async function isGet(path) {
+    return apiFetch(`${IS_BASE}${path}`, { headers: isHdrs });
+  }
+  async function isPost(path, body) {
+    return apiFetch(`${IS_BASE}${path}`, { method: 'POST', headers: isHdrs, body: JSON.stringify(body) });
+  }
+  async function isPatch(path, body) {
+    return apiFetch(`${IS_BASE}${path}`, { method: 'PATCH', headers: isHdrs, body: JSON.stringify(body) });
+  }
+
+  try {
+    // ── Step 2: Create application if it does not exist ───────────────────
+    console.log(`[Onboard] Checking for existing app: "${name}"...`);
+    const listResp = await isGet('/api/server/v1/applications?limit=50');
+    const listText = await listResp.text();
+
+    if (!listText.includes(`"${name}"`)) {
+      console.log(`[Onboard] Creating application "${name}"...`);
+      const appPayload = {
+        name,
+        description: desc,
+        inboundProtocolConfiguration: {
+          oidc: {
+            grantTypes: ['authorization_code', 'implicit', 'refresh_token', 'urn:openid:params:grant-type:ciba'],
+            callbackURLs: callbacks,
+            publicClient: false,
+            scopeValidators: [],
+            accessToken: { type: 'JWT', userAccessTokenExpiryInSeconds: 3600, applicationAccessTokenExpiryInSeconds: 3600 }
+          }
+        },
+        authenticationSequence: {
+          type: 'USER_DEFINED',
+          steps: [
+            { id: 1, options: [{ idp: 'LOCAL', authenticator: 'BasicAuthenticator' }] },
+            { id: 2, options: [{ idp: 'LOCAL', authenticator: 'SampleLocalAuthenticator' }] }
+          ],
+          script: CIBA_CONDITIONAL_SCRIPT
+        },
+        claimConfiguration: {
+          dialect: 'LOCAL',
+          claimMappings: [{ applicationClaim: 'http://wso2.org/claims/username', localClaim: { uri: 'http://wso2.org/claims/username' } }],
+          requestedClaims: [{ claim: { uri: 'http://wso2.org/claims/username' }, mandatory: true }],
+          subject: { claim: { uri: 'http://wso2.org/claims/username' }, includeUserDomain: false, includeTenantDomain: false, useMappedLocalSubject: false }
+        },
+        advancedConfigurations: {
+          certificate: { type: 'JWKS', value: jwks }
+        }
+      };
+      const createResp = await isPost('/api/server/v1/applications', appPayload);
+      if (createResp.status !== 201 && createResp.status !== 200) {
+        const errText = await createResp.text();
+        console.error(`[Onboard] App creation failed (HTTP ${createResp.status}): ${errText}`);
+        return res.status(500).json({ error: `Failed to create application (HTTP ${createResp.status}): ${errText}` });
+      }
+      console.log(`[Onboard] Application created (HTTP ${createResp.status})`);
+    } else {
+      console.log(`[Onboard] Application "${name}" already exists.`);
+    }
+
+    // ── Step 3: Resolve APP_ID and fetch client credentials ───────────────
+    const listResp2 = await isGet('/api/server/v1/applications?limit=50');
+    const listText2 = await listResp2.text();
+    const appIdMatch = listText2.match(new RegExp(`"id":"([^"]+)","name":"${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"`));
+    const appId = appIdMatch ? appIdMatch[1] : null;
+    if (!appId) return res.status(500).json({ error: `Could not resolve APP_ID for "${name}"` });
+    console.log(`[Onboard] Resolved APP_ID: ${appId}`);
+
+    // ── Step 2b: Ensure callback URLs match (fixes stale registrations) ──
+    console.log(`[Onboard] Patching callback URLs to: ${callbacks.join(', ')}`);
+    await isPatch(`/api/server/v1/applications/${appId}`, {
+      inboundProtocolConfiguration: {
+        oidc: { callbackURLs: callbacks }
+      }
+    });
+
+    // ── Step 2c: Configure subject claim ─────────────────────────────────
+    await isPatch(`/api/server/v1/applications/${appId}`, {
+      claimConfiguration: {
+        dialect: 'LOCAL',
+        claimMappings: [{ applicationClaim: 'http://wso2.org/claims/username', localClaim: { uri: 'http://wso2.org/claims/username' } }],
+        requestedClaims: [{ claim: { uri: 'http://wso2.org/claims/username' }, mandatory: true }],
+        subject: { claim: { uri: 'http://wso2.org/claims/username' }, includeUserDomain: false, includeTenantDomain: false, useMappedLocalSubject: false }
+      }
+    });
+
+    const oidcResp = await isGet(`/api/server/v1/applications/${appId}/inbound-protocols/oidc`);
+    const oidcText = await oidcResp.text();
+    const clientIdMatch     = oidcText.match(/"clientId":"([^"]+)"/);
+    const clientSecretMatch = oidcText.match(/"clientSecret":"([^"]+)"/);
+    const clientId     = clientIdMatch ? clientIdMatch[1] : null;
+    const clientSecret = clientSecretMatch ? clientSecretMatch[1] : null;
+    if (!clientId || !clientSecret) return res.status(500).json({ error: 'Could not extract client credentials from OIDC config' });
+    console.log(`[Onboard] clientId: ${clientId.substring(0, 8)}...`);
+
+    // ── Step 4: Ensure KYC User Data API resource exists ─────────────────
+    const apiResResp = await isGet('/api/server/v1/api-resources?filter=name+eq+KYC+User+Data');
+    const apiResText = await apiResResp.text();
+    let apiResourceId = (apiResText.match(/"id":"([^"]+)"/) || [])[1];
+
+    if (!apiResourceId) {
+      console.log('[Onboard] Creating API resource "KYC User Data"...');
+      const createApiRes = await isPost('/api/server/v1/api-resources', {
+        name: 'KYC User Data', identifier: 'user:data', requiresAuthorization: true,
+        scopes: [{ name: 'user:data', displayName: 'User Data', description: 'Access to KYC user data' }]
+      });
+      console.log(`[Onboard] API resource create: HTTP ${createApiRes.status}`);
+      const apiResResp2 = await isGet('/api/server/v1/api-resources?filter=name+eq+KYC+User+Data');
+      const apiResText2 = await apiResResp2.text();
+      apiResourceId = (apiResText2.match(/"id":"([^"]+)"/) || [])[1];
+    }
+    console.log(`[Onboard] API resource ID: ${apiResourceId}`);
+
+    // ── Step 5: Set role audience to ORGANIZATION ─────────────────────────
+    await isPatch(`/api/server/v1/applications/${appId}`, {
+      associatedRoles: { allowedAudience: 'ORGANIZATION' }
+    });
+
+    // ── Step 6: Authorize API resource in the application ─────────────────
+    const authorizedResp = await isGet(`/api/server/v1/applications/${appId}/authorized-apis`);
+    const authorizedText = await authorizedResp.text();
+    if (!authorizedText.includes('"user:data"')) {
+      console.log('[Onboard] Authorizing API resource in application...');
+      const authApiResp = await isPost(`/api/server/v1/applications/${appId}/authorized-apis`, {
+        id: apiResourceId, policyIdentifier: 'RBAC', scopes: ['user:data']
+      });
+      console.log(`[Onboard] API authorized: HTTP ${authApiResp.status}`);
+    } else {
+      console.log('[Onboard] API resource already authorized.');
+    }
+
+    console.log(`[Onboard] Complete — clientId: ${clientId.substring(0, 8)}...`);
+    res.json({ clientId, clientSecret, appId });
+
+  } catch (e) {
+    console.error('[Onboard] Error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // Start listening immediately — setup retries in the background
 // The UI shows a loading indicator until /api/status returns ready:true
 app.listen(PORT, () => {
-  console.log(`\nBank Portal    → http://localhost:${PORT}/`);
-  console.log(`Citizen App    → http://localhost:${PORT}/citizen/`);
+  console.log(`\nOnboarding     → http://localhost:${PORT}/digital-locker/`);
+  console.log(`Bank Portal    → http://localhost:${PORT}/bank-portal/`);
+  console.log(`Citizen App    → http://localhost:${PORT}/digital-locker/citizen/`);
   console.log(`Auth callback  → ${REDIRECT_URI}`);
   console.log(`Signing kid    → ${SIGNING_KID}`);
 });

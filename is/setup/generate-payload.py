@@ -18,7 +18,7 @@ payload = {
                 "refresh_token",
                 "urn:openid:params:grant-type:ciba"
             ],
-            "callbackURLs": ["http://localhost:3011/auth-callback.html"],
+            "callbackURLs": ["http://localhost:3010/auth-callback.html"],
             "publicClient": False,
             "scopeValidators": [],
             "accessToken": {

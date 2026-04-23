@@ -289,6 +289,40 @@
     to   { opacity: 1; transform: translateX(-50%) translateY(0); }
   }
 
+  /* ===== Consent popup waiting overlay ===== */
+  #popup-waiting {
+    display: none; position: fixed; inset: 0;
+    background: rgba(13,71,161,.88);
+    z-index: 500; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 24px; text-align: center;
+  }
+  #popup-waiting.show { display: flex; }
+  .popup-waiting-icon { font-size: 52px; margin-bottom: 16px; }
+  .popup-waiting-title {
+    font-size: 19px; font-weight: 700; color: #fff; margin-bottom: 8px;
+  }
+  .popup-waiting-sub {
+    font-size: 13px; color: rgba(255,255,255,.78);
+    line-height: 1.55; margin-bottom: 28px; max-width: 280px;
+  }
+  .popup-spinner {
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 3px solid rgba(255,255,255,.25);
+    border-top-color: #fff;
+    animation: spin .8s linear infinite;
+    margin-bottom: 28px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-popup-done {
+    padding: 12px 28px; background: rgba(255,255,255,.15);
+    border: 2px solid rgba(255,255,255,.4);
+    color: #fff; border-radius: 8px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-popup-done:hover { background: rgba(255,255,255,.25); }
+
   /* ===== Push notification banner ===== */
   #push-banner {
     display: none;
@@ -417,6 +451,15 @@
   </div>
 </div>
 
+<!-- Popup waiting overlay -->
+<div id="popup-waiting">
+  <div class="popup-waiting-icon">🔒</div>
+  <div class="popup-waiting-title">Waiting for your approval</div>
+  <div class="popup-waiting-sub">A secure window has opened for identity verification. Complete the steps there to approve or reject this consent request.</div>
+  <div class="popup-spinner"></div>
+  <button class="btn-popup-done" onclick="closeConsentModal()">Done / Cancel</button>
+</div>
+
 <!-- Toast -->
 <div id="toast"></div>
 
@@ -505,7 +548,7 @@
   }
 
   function onBannerClick() {
-    if (bannerAuthUrl) window.open(bannerAuthUrl, '_blank');
+    if (bannerAuthUrl) openConsent(bannerAuthUrl);
     dismissBanner();
   }
 
@@ -555,8 +598,38 @@
     }
   }
 
+  var consentPopup = null;
+  var popupPollInterval = null;
+
   function openConsent(url) {
-    window.open(url, '_blank');
+    // Open a centred popup window — avoids iframe cert issues with self-signed certs
+    var w = 520, h = 700;
+    var left = Math.max(0, Math.round(window.screenX + (window.outerWidth - w) / 2));
+    var top  = Math.max(0, Math.round(window.screenY + (window.outerHeight - h) / 2));
+    consentPopup = window.open(
+      url, 'consent_popup',
+      'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top +
+      ',resizable=yes,scrollbars=yes,status=no,toolbar=no,menubar=no,location=no'
+    );
+    document.getElementById('popup-waiting').classList.add('show');
+
+    // Poll every second: close overlay when popup is closed or consent resolved
+    clearInterval(popupPollInterval);
+    popupPollInterval = setInterval(function() {
+      if (!consentPopup || consentPopup.closed) {
+        closeConsentModal();
+      }
+    }, 1000);
+  }
+
+  function closeConsentModal() {
+    clearInterval(popupPollInterval);
+    if (consentPopup && !consentPopup.closed) consentPopup.close();
+    consentPopup = null;
+    document.getElementById('popup-waiting').classList.remove('show');
+    // Refresh pending list and history
+    poll();
+    if (currentTab === 'history') loadHistory();
   }
 
   async function cancelRequest(id, btn) {

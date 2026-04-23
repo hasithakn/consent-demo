@@ -3,180 +3,267 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>National Bank — Branch Portal</title>
-<link rel="stylesheet" href="style.css">
+<title>Digital Locker — Demo Platform</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #1565c0;
+    --primary-dark: #0d47a1;
+    --primary-light: #e3f2fd;
+    --success: #2e7d32;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --accent-bank: #1565c0;
+    --accent-locker: #6d28d9;
+    --accent-citizen: #065f46;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .hub-header {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 18px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon { font-size: 26px; }
+  .brand-name { font-size: 18px; font-weight: 700; color: var(--primary); }
+  .brand-sep { color: var(--border); margin: 0 6px; font-size: 20px; }
+  .brand-sub { font-size: 13px; color: var(--muted); }
+  .env-badge {
+    background: #fef3c7; border: 1px solid #fcd34d;
+    color: #92400e; font-size: 11px; font-weight: 700;
+    padding: 4px 12px; border-radius: 20px; letter-spacing: .4px;
+  }
+
+  /* Main */
+  main { flex: 1; padding: 36px 48px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* Portal cards */
+  .portals-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-bottom: 32px;
+  }
+  .portal-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    transition: box-shadow .2s, transform .15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .portal-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 4px;
+    border-radius: 12px 12px 0 0;
+  }
+  .portal-card.locker::after  { background: var(--accent-locker); }
+  .portal-card.bank::after    { background: var(--accent-bank); }
+  .portal-card.citizen::after { background: var(--accent-citizen); }
+  .portal-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.1); transform: translateY(-2px); }
+
+  .portal-type {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .6px; padding: 3px 8px; border-radius: 4px;
+    display: inline-block; margin-bottom: 12px;
+  }
+  .locker  .portal-type { background: #ede9fe; color: var(--accent-locker); }
+  .bank    .portal-type { background: var(--primary-light); color: var(--accent-bank); }
+  .citizen .portal-type { background: #d1fae5; color: var(--accent-citizen); }
+
+  .portal-icon { font-size: 28px; margin-bottom: 10px; display: block; }
+  .portal-card h3 { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .portal-card p { font-size: 13px; color: var(--muted); line-height: 1.55; margin-bottom: 16px; }
+  .portal-url {
+    font-family: 'Courier New', monospace; font-size: 11px;
+    color: var(--muted); background: var(--bg);
+    padding: 4px 8px; border-radius: 4px; display: block; margin-bottom: 14px;
+  }
+  .portal-btn {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; border-radius: 7px;
+    font-size: 13px; font-weight: 600;
+  }
+  .locker  .portal-btn { background: #ede9fe; color: var(--accent-locker); }
+  .bank    .portal-btn { background: var(--primary-light); color: var(--accent-bank); }
+  .citizen .portal-btn { background: #d1fae5; color: var(--accent-citizen); }
+
+  /* Bottom layout */
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* Demo flow */
+  .flow-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px;
+  }
+  .flow-list { list-style: none; }
+  .flow-list li {
+    display: flex; align-items: baseline; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px; color: var(--text); line-height: 1.5;
+  }
+  .flow-list li:last-child { border-bottom: none; }
+  .flow-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--primary-light); color: var(--primary);
+    font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* Demo setup */
+  .setup-card {
+    background: var(--card);
+    border: 1px dashed #cbd5e1;
+    border-radius: 12px; padding: 20px;
+  }
+  .setup-card .setup-label {
+    font-size: 10px; font-weight: 700; letter-spacing: .8px;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 14px;
+  }
+  .setup-link {
+    display: block; text-decoration: none;
+    background: #f8fafc; border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px;
+    transition: border-color .2s, box-shadow .15s;
+  }
+  .setup-link:hover { border-color: #94a3b8; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+  .setup-link-icon { font-size: 22px; margin-bottom: 8px; display: block; }
+  .setup-link h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .setup-link p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .setup-link .setup-url {
+    font-family: 'Courier New', monospace; font-size: 10px;
+    color: #94a3b8; margin-top: 8px; display: block;
+  }
+  .setup-note {
+    font-size: 11px; color: var(--muted);
+    margin-top: 12px; line-height: 1.5;
+    padding: 10px 12px; background: #fefce8;
+    border-radius: 6px; border: 1px solid #fef08a;
+  }
+
+  /* Footer */
+  footer {
+    padding: 16px 48px; border-top: 1px solid var(--border);
+    background: var(--card);
+    font-size: 11px; color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+</style>
 </head>
 <body>
-<div id="app">
-  <!-- Top bar -->
-  <header class="top-bar">
-    <div class="top-bar-left">
-      <span class="logo">🏛 National Bank</span>
-      <span class="top-bar-sep">|</span>
-      <span class="top-bar-label">Branch Operations Portal</span>
-    </div>
-    <div class="top-bar-right">
-      <span class="user-name">Officer: S. Perera</span>
-      <span class="branch-id">Branch: Colombo Main</span>
-      <span id="setup-indicator" class="status-dot dot-loading" title="Connecting..."></span>
-    </div>
-  </header>
 
-  <div class="main-layout">
-    <!-- Sidebar -->
-    <nav class="sidebar">
-      <div class="nav-section">
-        <div class="nav-section-title">CUSTOMER SERVICES</div>
-        <a href="#" class="nav-item active" data-page="dashboard"><span class="nav-icon">📊</span> Dashboard</a>
-        <a href="#" class="nav-item" data-page="new-kyc"><span class="nav-icon">📋</span> New KYC Request</a>
-        <a href="#" class="nav-item" data-page="requests"><span class="nav-icon">📂</span> All Requests</a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-section-title">ACCOUNT MGMT</div>
-        <a href="#" class="nav-item disabled"><span class="nav-icon">💳</span> Open Account</a>
-        <a href="#" class="nav-item disabled"><span class="nav-icon">📑</span> Fixed Deposits</a>
-        <a href="#" class="nav-item disabled"><span class="nav-icon">🔄</span> Transfers</a>
-      </div>
-      <div class="nav-section">
-        <div class="nav-section-title">ADMIN</div>
-        <a href="#" class="nav-item disabled"><span class="nav-icon">⚙️</span> Settings</a>
-        <a href="#" class="nav-item disabled"><span class="nav-icon">📜</span> Audit Log</a>
-      </div>
-    </nav>
+<header class="hub-header">
+  <div class="brand">
+    <span class="brand-icon">🗄️</span>
+    <span class="brand-name">Digital Locker</span>
+    <span class="brand-sep">|</span>
+    <span class="brand-sub">Open Finance Consent Management · Demo Platform</span>
+  </div>
+  <span class="env-badge">Demo Environment</span>
+</header>
 
-    <!-- Content -->
-    <main class="content">
-      <!-- Dashboard -->
-      <div id="page-dashboard" class="page active">
-        <h2>Dashboard</h2>
-        <div class="stats-bar">
-          <div class="stat-card">
-            <div class="stat-value" id="stat-total">0</div>
-            <div class="stat-label">Total Requests</div>
-          </div>
-          <div class="stat-card stat-pending">
-            <div class="stat-value" id="stat-pending">0</div>
-            <div class="stat-label">Pending Approval</div>
-          </div>
-          <div class="stat-card stat-approved">
-            <div class="stat-value" id="stat-approved">0</div>
-            <div class="stat-label">Data Available</div>
-          </div>
-          <div class="stat-card stat-rejected">
-            <div class="stat-value" id="stat-rejected">0</div>
-            <div class="stat-label">Rejected</div>
-          </div>
-        </div>
-        <h3>Recent Activity</h3>
-        <table class="data-table" id="dashboard-table">
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>NIN</th>
-              <th>Customer</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="dashboard-tbody"></tbody>
-        </table>
-        <div class="empty-state" id="dashboard-empty">
-          <p>No KYC requests yet. Click <strong>New KYC Request</strong> to begin.</p>
-        </div>
-      </div>
+<main>
 
-      <!-- New KYC Request -->
-      <div id="page-new-kyc" class="page">
-        <h2>New KYC Verification Request</h2>
-        <div class="form-card">
-          <div class="form-section">
-            <h3>Customer Information</h3>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="nin-input">National Identification Number (NIN) <span class="req">*</span></label>
-                <input type="text" id="nin-input" placeholder="e.g. NIC123456" value="NIC123456" maxlength="20">
-              </div>
-              <div class="form-group">
-                <label for="name-input">Customer Name</label>
-                <input type="text" id="name-input" placeholder="e.g. John Doe" value="John Doe">
-              </div>
-            </div>
-            <div class="form-row">
-              <div class="form-group">
-                <label for="account-type">Account Type</label>
-                <select id="account-type">
-                  <option value="Savings">Savings Account</option>
-                  <option value="Current">Current Account</option>
-                  <option value="Fixed Deposit">Fixed Deposit</option>
-                  <option value="Junior Savings">Junior Savings</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label>Branch</label>
-                <input type="text" value="Colombo Main" disabled>
-              </div>
-            </div>
-          </div>
+  <p class="section-label">Portals</p>
+  <div class="portals-grid">
 
-          <div class="form-section">
-            <h3>Data Fields Requested</h3>
-            <p class="form-hint">The following personal data fields will be requested from the citizen.
-              Mandatory fields are pre-selected.</p>
-            <div id="elements-checklist" class="checklist"></div>
-          </div>
+    <a href="/digital-locker/" class="portal-card locker" target="_blank">
+      <span class="portal-icon">🏛️</span>
+      <span class="portal-type">Data Fiduciary</span>
+      <h3>Digital Locker Onboarding</h3>
+      <p>Bank officers log in here to view available data elements and register their application to receive OAuth credentials.</p>
+      <span class="portal-url">localhost:3010/digital-locker/</span>
+      <div class="portal-btn">Open Portal <span>↗</span></div>
+    </a>
 
-          <div class="form-actions">
-            <button id="btn-submit-kyc" class="btn btn-primary" disabled>
-              Submit KYC Request
-            </button>
-            <button class="btn btn-secondary" onclick="navigateTo('dashboard')">Cancel</button>
-          </div>
-        </div>
+    <a href="/bank-portal/" class="portal-card bank" target="_blank">
+      <span class="portal-icon">🏦</span>
+      <span class="portal-type">Third-Party Provider</span>
+      <h3>National Bank Portal</h3>
+      <p>Bank officers submit KYC requests, initiate CIBA consent flows, and retrieve verified citizen data once approved.</p>
+      <span class="portal-url">localhost:3010/bank-portal/</span>
+      <div class="portal-btn">Open Portal <span>↗</span></div>
+    </a>
 
+    <a href="/digital-locker/citizen/" class="portal-card citizen" target="_blank">
+      <span class="portal-icon">📱</span>
+      <span class="portal-type">Citizen</span>
+      <h3>Digital Locker Citizen App</h3>
+      <p>Citizens receive consent requests, review what data will be shared, and approve or reject access to their personal data.</p>
+      <span class="portal-url">localhost:3010/digital-locker/citizen/</span>
+      <div class="portal-btn">Open App <span>↗</span></div>
+    </a>
 
-      </div>
-
-      <!-- All Requests -->
-      <div id="page-requests" class="page">
-        <h2>All KYC Requests</h2>
-        <table class="data-table" id="requests-table">
-          <thead>
-            <tr>
-              <th>Created</th>
-              <th>NIN</th>
-              <th>Customer</th>
-              <th>Account Type</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="requests-tbody"></tbody>
-        </table>
-        <div class="empty-state" id="requests-empty">
-          <p>No requests found.</p>
-        </div>
-      </div>
-
-      <!-- Request Detail (shown as overlay) -->
-      <div id="detail-overlay" class="overlay" style="display:none">
-        <div class="overlay-content">
-          <div class="overlay-header">
-            <h2>KYC Request Details</h2>
-            <button class="btn-close" onclick="closeDetail()">✕</button>
-          </div>
-          <div id="detail-body"></div>
-        </div>
-      </div>
-    </main>
   </div>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <span>National Bank Branch Portal v1.0 — Demo System — Not for Production Use</span>
-  </footer>
-</div>
+  <div class="bottom-grid">
 
-<script src="app.js"></script>
+    <!-- Demo flow -->
+    <div class="flow-card">
+      <p class="section-label">Demo Flow</p>
+      <ol class="flow-list">
+        <li><span class="flow-num">1</span>Digital Locker operator registers data elements in OpenFGC via the Admin Console.</li>
+        <li><span class="flow-num">2</span>Bank officer logs into the Digital Locker Onboarding portal and registers the bank app — receives a Client ID &amp; Secret.</li>
+        <li><span class="flow-num">3</span>Bank officer pastes credentials into the Bank Portal to activate it.</li>
+        <li><span class="flow-num">4</span>Bank officer submits a KYC request for a customer — a consent record is created and a CIBA flow is initiated.</li>
+        <li><span class="flow-num">5</span>Citizen opens the Digital Locker app, reviews the itemised data notice, and approves or rejects the request.</li>
+        <li><span class="flow-num">6</span>Bank portal receives an access token scoped to the consent and retrieves the verified KYC data.</li>
+        <li><span class="flow-num">7</span>Digital Locker enforces consent on every API call — only approved elements are returned. Revocation is instant.</li>
+      </ol>
+    </div>
+
+    <!-- Demo setup -->
+    <div class="setup-card">
+      <p class="setup-label">One-time Configuration</p>
+      <a href="/digital-locker/admin/" class="setup-link" target="_blank">
+        <span class="setup-link-icon">⚙️</span>
+        <h4>Digital Locker Admin Console</h4>
+        <p>The Digital Locker defines the personal data elements it owns and manages on behalf of citizens.</p>
+        <span class="setup-url">localhost:3010/digital-locker/admin/</span>
+      </a>
+      <p class="setup-note">⚡ Run once before the demo to register data elements in the Consent Manager.</p>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  <span>Digital Locker Demo · Powered by WSO2</span>
+  <span>All portals · <code style="font-size:10px">localhost:3010</code></span>
+</footer>
+
 </body>
 </html>

@@ -43,29 +43,63 @@ async function checkSetup() {
   }
 }
 
-// ===== Load consent elements checklist =====
+// Canonical display names — used when API description is absent
+const EL_DISPLAY = {
+  first_name: 'First Name', last_name: 'Last Name', date_of_birth: 'Date of Birth',
+  gender: 'Gender', nationality: 'Nationality', middle_name: 'Middle Name',
+  place_of_birth: 'Place of Birth', marital_status: 'Marital Status',
+  tax_id: 'Tax ID', source_of_funds: 'Source of Funds',
+  contact: 'Contact Details', identifiers: 'Identity Documents', employment: 'Employment Details'
+};
+// Canonical order — matches the admin registration order
+const EL_ORDER = [
+  'first_name', 'last_name', 'date_of_birth', 'gender', 'nationality',
+  'middle_name', 'place_of_birth', 'marital_status',
+  'tax_id', 'source_of_funds', 'contact', 'identifiers', 'employment'
+];
+// Elements that default to selected and mandatory
+const DEFAULT_SELECTED  = new Set(['first_name', 'last_name', 'date_of_birth', 'nationality']);
+const DEFAULT_MANDATORY = new Set(['first_name', 'last_name', 'date_of_birth']);
+
+// ===== Load consent elements checklist (dynamically from Consent Manager) =====
 async function loadElementsChecklist() {
+  const container = document.getElementById('elements-checklist');
+  container.innerHTML = '<p style="font-size:12px;color:#888;padding:8px 0">Loading elements…</p>';
   try {
-    const r = await fetch(`${API}/api/config`);
+    const r = await fetch(`${API}/api/elements`);
     const data = await r.json();
-    const container = document.getElementById('elements-checklist');
+    const raw = (data.data || data || []);
+    // Sort by canonical order; unknown elements go to the end
+    const list = [...raw].sort((a, b) => {
+      const ai = EL_ORDER.indexOf(a.name);
+      const bi = EL_ORDER.indexOf(b.name);
+      return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+    });
+    if (list.length === 0) {
+      container.innerHTML = '<p style="font-size:12px;color:#c62828;padding:8px 0">No elements registered. Run the Admin Console first.</p>';
+      return;
+    }
     container.innerHTML = '';
-    data.elements.forEach(el => {
+    list.forEach(el => {
+      const displayName = el.displayName || el.description || EL_DISPLAY[el.name] || el.name;
+      const selected  = DEFAULT_SELECTED.has(el.name);
+      const mandatory = DEFAULT_MANDATORY.has(el.name);
       const div = document.createElement('div');
       div.className = 'element-row';
       div.innerHTML = `
         <label class="element-check">
-          <input type="checkbox" name="element" value="${el.name}" ${el.defaultSelected ? 'checked' : ''}>
-          ${escapeHtml(el.display)}
+          <input type="checkbox" name="element" value="${el.name}" ${selected ? 'checked' : ''}>
+          ${escapeHtml(displayName)}
         </label>
         <select class="element-type" data-element="${el.name}">
-          <option value="mandatory" ${el.defaultMandatory ? 'selected' : ''}>Mandatory</option>
-          <option value="optional" ${el.defaultMandatory ? '' : 'selected'}>Optional</option>
+          <option value="mandatory" ${mandatory ? 'selected' : ''}>Mandatory</option>
+          <option value="optional" ${mandatory ? '' : 'selected'}>Optional</option>
         </select>
       `;
       container.appendChild(div);
     });
   } catch (e) {
+    container.innerHTML = '<p style="font-size:12px;color:#c62828;padding:8px 0">Failed to load elements: ' + e.message + '</p>';
     console.error('Failed to load elements:', e);
   }
 }
@@ -436,7 +470,77 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// ===== Credentials Management =====
+
+function toggleCredsBanner() {
+  document.getElementById('credentials-banner').classList.toggle('open');
+  // icon rotation handled by CSS .creds-banner.open .creds-toggle-icon
+}
+
+function updateCredsBadge(clientId) {
+  const badge = document.getElementById('creds-status-badge');
+  if (clientId) {
+    badge.textContent = clientId.substring(0, 8) + '...';
+    badge.className = 'creds-badge creds-is-set';
+  } else {
+    badge.textContent = 'Not configured';
+    badge.className = 'creds-badge creds-not-set';
+  }
+}
+
+async function applyCredentials() {
+  const clientId     = document.getElementById('creds-client-id').value.trim();
+  const clientSecret = document.getElementById('creds-client-secret').value.trim();
+  if (!clientId || !clientSecret) {
+    showToast('Enter both Client ID and Client Secret.', 'error');
+    return;
+  }
+  try {
+    const r = await fetch(`${API}/api/apply-credentials`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, clientSecret })
+    });
+    if (r.ok) {
+      localStorage.setItem('bank_client_id',     clientId);
+      localStorage.setItem('bank_client_secret', clientSecret);
+      updateCredsBadge(clientId);
+      document.getElementById('credentials-banner').classList.remove('open');
+      showToast('Credentials applied — portal is ready.', 'success');
+      checkSetup();
+    } else {
+      showToast('Failed to apply credentials.', 'error');
+    }
+  } catch (e) {
+    showToast('Error: ' + e.message, 'error');
+  }
+}
+
+async function loadStoredCredentials() {
+  const clientId     = localStorage.getItem('bank_client_id');
+  const clientSecret = localStorage.getItem('bank_client_secret');
+
+  if (clientId && clientSecret) {
+    document.getElementById('creds-client-id').value     = clientId;
+    document.getElementById('creds-client-secret').value = clientSecret;
+    updateCredsBadge(clientId);
+    // Push to server so it's ready without waiting for user to click Apply
+    try {
+      await fetch(`${API}/api/apply-credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, clientSecret })
+      });
+    } catch (e) { /* server may not be up yet — checkSetup will retry */ }
+  } else {
+    // Auto-open the banner so the user knows they need to configure
+    document.getElementById('credentials-banner').classList.add('open');
+  }
+}
+
 // ===== Init =====
-checkSetup();
+loadStoredCredentials().then(() => {
+  checkSetup();
+});
 refreshRequests();
 pollInterval = setInterval(refreshRequests, 1500);

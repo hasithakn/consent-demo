@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Locker — Admin Console</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #6d28d9;
+    --primary-dark: #5b21b6;
+    --primary-light: #ede9fe;
+    --success: #2e7d32;
+    --success-light: #e8f5e9;
+    --danger: #c62828;
+    --bg: #f0f4f8;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .app-header {
+    background: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 0 48px;
+    height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .brand-icon { font-size: 22px; }
+  .brand-name { font-size: 17px; font-weight: 700; color: var(--primary); }
+  .brand-sep { color: var(--border); margin: 0 4px; font-size: 18px; }
+  .brand-sub { font-size: 13px; color: var(--muted); }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .header-badge {
+    background: var(--primary-light); color: var(--primary);
+    font-size: 11px; font-weight: 700; padding: 4px 10px;
+    border-radius: 12px; letter-spacing: .3px;
+  }
+  .btn-back {
+    font-size: 12px; color: var(--muted); text-decoration: none;
+    padding: 6px 12px; border: 1px solid var(--border);
+    border-radius: 6px; transition: border-color .2s, color .2s;
+  }
+  .btn-back:hover { border-color: #94a3b8; color: var(--text); }
+
+  /* Main */
+  main { flex: 1; padding: 32px 48px; max-width: 1200px; width: 100%; margin: 0 auto; }
+
+  /* Action bar */
+  .action-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .action-bar-left h2 { font-size: 17px; font-weight: 700; color: var(--text); }
+  .action-bar-left p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+  .action-row { display: flex; align-items: center; gap: 12px; }
+  .btn-register {
+    padding: 10px 20px;
+    background: var(--primary); color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: background .2s, opacity .2s;
+    display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  }
+  .btn-register:hover:not(:disabled) { background: var(--primary-dark); }
+  .btn-register:disabled { opacity: .55; cursor: not-allowed; }
+  .status-pill {
+    font-size: 12px; padding: 5px 12px; border-radius: 20px;
+    font-weight: 600; display: none; white-space: nowrap;
+  }
+  .status-pill.show { display: inline-flex; align-items: center; gap: 6px; }
+  .status-pill.success { background: var(--success-light); color: var(--success); }
+  .status-pill.error   { background: #fbe9e7; color: var(--danger); }
+  .status-pill.loading { background: var(--primary-light); color: var(--primary); }
+
+  /* Split layout */
+  .split-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* Sample data card (left) */
+  .sample-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    position: sticky; top: 20px;
+  }
+  .sample-card-header {
+    padding: 14px 18px; background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sample-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--primary-light); color: var(--primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+  }
+  .sample-card-header h3 { font-size: 14px; font-weight: 700; color: var(--text); }
+  .sample-card-header p { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .sample-section { padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .sample-section:last-child { border-bottom: none; }
+  .sample-section-title {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .7px; color: var(--muted); margin-bottom: 10px;
+  }
+  .sample-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 4px 0; gap: 8px;
+  }
+  .sample-row + .sample-row { border-top: 1px solid #f1f5f9; }
+  .sample-key { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+  .sample-val { font-size: 12px; font-weight: 600; color: var(--text); text-align: right; }
+  .sample-val.mono { font-family: 'Courier New', monospace; font-size: 11px; }
+  .sample-val.badge {
+    font-size: 10px; padding: 1px 7px; border-radius: 8px;
+    background: var(--primary-light); color: var(--primary); font-weight: 700;
+  }
+
+  /* Elements table (right) */
+  .table-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left; padding: 11px 14px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .5px; color: var(--muted);
+    background: #f8fafc; border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #fafbff; }
+  tbody td { padding: 11px 14px; font-size: 12px; vertical-align: middle; }
+
+  .td-name { font-family: 'Courier New', monospace; font-size: 11px; font-weight: 600; color: var(--text); }
+  .td-display { font-size: 13px; font-weight: 600; }
+  .td-path { font-family: 'Courier New', monospace; font-size: 10px; color: var(--muted); }
+
+  .cat-badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 8px; letter-spacing: .3px; white-space: nowrap;
+  }
+  .cat-Identity   { background: #e0f2fe; color: #0369a1; }
+  .cat-Financial  { background: #fef9c3; color: #854d0e; }
+  .cat-Contact    { background: #dcfce7; color: #166534; }
+  .cat-Documents  { background: #fce7f3; color: #9d174d; }
+  .cat-Employment { background: #ede9fe; color: #6d28d9; }
+
+  .id-cell { font-family: 'Courier New', monospace; font-size: 10px; white-space: nowrap; }
+  .id-cell.registered { color: var(--success); }
+  .id-cell.error      { color: var(--danger); }
+  .id-cell.pending    { color: #94a3b8; font-style: italic; }
+  .id-dot {
+    display: inline-block; width: 6px; height: 6px;
+    border-radius: 50%; margin-right: 4px; vertical-align: middle;
+  }
+  .id-dot.registered { background: var(--success); }
+  .id-dot.error      { background: var(--danger); }
+
+  /* Footer */
+  footer {
+    padding: 14px 48px; border-top: 1px solid var(--border);
+    background: var(--card); font-size: 11px; color: var(--muted);
+    display: flex; justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="brand">
+    <span class="brand-icon">🗄️</span>
+    <span class="brand-name">Digital Locker</span>
+    <span class="brand-sep">|</span>
+    <span class="brand-sub">Admin Console</span>
+  </div>
+  <div class="header-right">
+    <span class="header-badge">Operator Access</span>
+    <a href="/" class="btn-back">← Hub</a>
+  </div>
+</header>
+
+<main>
+
+  <div class="action-bar">
+    <div class="action-bar-left">
+      <h2>Data Element Registry</h2>
+      <p>Define the personal data elements the Digital Locker holds on behalf of citizens, then register them in the Consent Manager.</p>
+    </div>
+    <div class="action-row">
+      <span id="status-pill" class="status-pill"></span>
+      <button class="btn-register" id="btn-register" onclick="registerElements()">
+        ⚡ Register Data Elements in Consent Manager
+      </button>
+    </div>
+  </div>
+
+  <div class="split-grid">
+
+    <!-- Left: Sample citizen data -->
+    <div class="sample-card">
+      <div class="sample-card-header">
+        <div class="sample-avatar">👤</div>
+        <div>
+          <h3>John Doe</h3>
+          <p><span style="background:#fef9c3;color:#854d0e;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:.4px">Sample</span> citizen record</p>
+        </div>
+      </div>
+
+      <div class="sample-section">
+        <div class="sample-section-title">Identity</div>
+        <div class="sample-row"><span class="sample-key">First Name</span><span class="sample-val">John</span></div>
+        <div class="sample-row"><span class="sample-key">Last Name</span><span class="sample-val">Doe</span></div>
+        <div class="sample-row"><span class="sample-key">Date of Birth</span><span class="sample-val">1990-05-14</span></div>
+        <div class="sample-row"><span class="sample-key">Gender</span><span class="sample-val">Male</span></div>
+        <div class="sample-row"><span class="sample-key">Nationality</span><span class="sample-val">Sri Lankan</span></div>
+        <div class="sample-row"><span class="sample-key">Middle Name</span><span class="sample-val">Michael</span></div>
+        <div class="sample-row"><span class="sample-key">Place of Birth</span><span class="sample-val">Colombo</span></div>
+        <div class="sample-row"><span class="sample-key">Marital Status</span><span class="sample-val">Single</span></div>
+      </div>
+
+      <div class="sample-section">
+        <div class="sample-section-title">Financial</div>
+        <div class="sample-row"><span class="sample-key">Tax ID</span><span class="sample-val mono">LK-TAX-198724</span></div>
+        <div class="sample-row"><span class="sample-key">Source of Funds</span><span class="sample-val">Employment</span></div>
+      </div>
+
+      <div class="sample-section">
+        <div class="sample-section-title">Contact</div>
+        <div class="sample-row"><span class="sample-key">Phone</span><span class="sample-val mono">+94 77 123 4567</span></div>
+        <div class="sample-row"><span class="sample-key">Email</span><span class="sample-val mono">john@example.com</span></div>
+        <div class="sample-row"><span class="sample-key">Address</span><span class="sample-val">No. 5, Galle Road, Colombo 03</span></div>
+      </div>
+
+      <div class="sample-section">
+        <div class="sample-section-title">Documents</div>
+        <div class="sample-row"><span class="sample-key">NIC</span><span class="sample-val mono">900350123V</span></div>
+        <div class="sample-row"><span class="sample-key">Passport</span><span class="sample-val mono">N1234567</span></div>
+      </div>
+
+      <div class="sample-section">
+        <div class="sample-section-title">Employment</div>
+        <div class="sample-row"><span class="sample-key">Employer</span><span class="sample-val">WSO2 Lanka (Pvt) Ltd</span></div>
+        <div class="sample-row"><span class="sample-key">Occupation</span><span class="sample-val">Software Engineer</span></div>
+        <div class="sample-row"><span class="sample-key">Status</span><span class="sample-val badge">Employed</span></div>
+      </div>
+    </div>
+
+    <!-- Right: Element registry table -->
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Type</th>
+            <th>properties.jsonPath</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="elements-tbody"></tbody>
+      </table>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>
+  <span>Digital Locker Admin Console · Powered by WSO2</span>
+  <span>Consent Manager — data element registry</span>
+</footer>
+
+<script>
+  var ELEMENTS = [
+    { name: 'first_name',      displayName: 'First Name',         category: 'Identity',   jsonPath: '$.person.first_name' },
+    { name: 'last_name',       displayName: 'Last Name',          category: 'Identity',   jsonPath: '$.person.last_name' },
+    { name: 'date_of_birth',   displayName: 'Date of Birth',      category: 'Identity',   jsonPath: '$.person.date_of_birth' },
+    { name: 'gender',          displayName: 'Gender',             category: 'Identity',   jsonPath: '$.person.gender' },
+    { name: 'nationality',     displayName: 'Nationality',        category: 'Identity',   jsonPath: '$.person.nationality' },
+    { name: 'middle_name',     displayName: 'Middle Name',        category: 'Identity',   jsonPath: '$.person.middle_name' },
+    { name: 'place_of_birth',  displayName: 'Place of Birth',     category: 'Identity',   jsonPath: '$.person.place_of_birth' },
+    { name: 'marital_status',  displayName: 'Marital Status',     category: 'Identity',   jsonPath: '$.person.marital_status' },
+    { name: 'tax_id',          displayName: 'Tax ID',             category: 'Financial',  jsonPath: '$.person.tax_id' },
+    { name: 'source_of_funds', displayName: 'Source of Funds',    category: 'Financial',  jsonPath: '$.person.source_of_funds' },
+    { name: 'contact',         displayName: 'Contact Details',    category: 'Contact',    jsonPath: '$.person.contact' },
+    { name: 'identifiers',     displayName: 'Identity Documents', category: 'Documents',  jsonPath: '$.person.identifiers' },
+    { name: 'employment',      displayName: 'Employment Details', category: 'Employment', jsonPath: '$.person.employment' },
+  ];
+
+  var idMap = {};
+
+  function renderTable() {
+    var tbody = document.getElementById('elements-tbody');
+    tbody.innerHTML = ELEMENTS.map(function(el) {
+      var reg = idMap[el.name];
+      var idCell = '';
+      if (!reg) {
+        idCell = '<span class="id-cell pending">not registered</span>';
+      } else if (reg.status === 'error') {
+        idCell = '<span class="id-cell error"><span class="id-dot error"></span>error</span>';
+      } else {
+        idCell = '<span class="id-cell registered"><span class="id-dot registered"></span>registered</span>';
+      }
+      return '<tr>' +
+        '<td class="td-name">' + el.name + '</td>' +
+        '<td class="td-desc">' + el.displayName + '</td>' +
+        '<td><span style="font-family:\'Courier New\',monospace;font-size:10px;background:#ede9fe;color:#6d28d9;padding:2px 7px;border-radius:6px">resource-field</span></td>' +
+        '<td class="td-path">' + el.jsonPath + '</td>' +
+        '<td>' + idCell + '</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  function setStatus(type, msg) {
+    var pill = document.getElementById('status-pill');
+    pill.className = 'status-pill show ' + type;
+    pill.textContent = msg;
+  }
+
+  async function loadExisting() {
+    try {
+      var r = await fetch('/api/elements');
+      if (!r.ok) return;
+      var data = await r.json();
+      var list = data.data || data || [];
+      list.forEach(function(el) {
+        if (el.name) idMap[el.name] = { id: el.id, status: 'existing' };
+      });
+      renderTable();
+    } catch (e) { /* ignore */ }
+  }
+
+  async function registerElements() {
+    var btn = document.getElementById('btn-register');
+    btn.disabled = true;
+    btn.textContent = '⏳ Registering…';
+    setStatus('loading', 'Registering with Consent Manager…');
+
+    try {
+      var r = await fetch('/api/create-elements', { method: 'POST' });
+      var data = await r.json();
+
+      if (!r.ok) {
+        setStatus('error', 'Error — check server logs');
+        return;
+      }
+
+      var results = data.results || [];
+      results.forEach(function(res) {
+        idMap[res.name] = { id: res.id, status: res.status === 'error' ? 'error' : 'ok' };
+      });
+      renderTable();
+
+      var created  = results.filter(function(r) { return r.status === 'created'; }).length;
+      var existing = results.filter(function(r) { return r.status === 'existing'; }).length;
+      var errors   = results.filter(function(r) { return r.status === 'error'; }).length;
+
+      if (errors > 0) {
+        setStatus('error', errors + ' error(s) — check server logs');
+      } else if (created > 0) {
+        setStatus('success', '✓ ' + created + ' registered, ' + existing + ' already existed');
+      } else {
+        setStatus('success', '✓ All ' + existing + ' elements already registered');
+      }
+    } catch (e) {
+      setStatus('error', 'Request failed: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚡ Register Data Elements in Consent Manager';
+    }
+  }
+
+  renderTable();
+  loadExisting();
+</script>
+</body>
+</html>
