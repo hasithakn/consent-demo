@@ -111,6 +111,12 @@ function setup() {
   console.log(`[Setup] Ready — client_id: ${activeClientId}, kid: ${SIGNING_KID}`);
 }
 
+// ===== Activity log helper =====
+function addLog(req, msg) {
+  if (!req.activityLog) req.activityLog = [];
+  req.activityLog.push({ time: new Date().toISOString(), msg });
+}
+
 // ===== Consent helpers =====
 
 async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
@@ -121,7 +127,7 @@ async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
     ? CONSENT_ELEMENTS.filter(e => selectedElements.includes(e.name))
     : CONSENT_ELEMENTS;
 
-  // Create a unique purpose per request (elements already exist in OpenFGC from seed script)
+  // Create a unique purpose per request — consent is created later by the citizen consent servlet
   const purposeName = `kyc_data_access_${Date.now()}`;
   const purposeBody = {
     name: purposeName,
@@ -130,7 +136,7 @@ async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
     elements: requestedElements.map(e => ({ name: e.name, isMandatory: mandatorySet.has(e.name) }))
   };
   console.log(`[OpenFGC] POST /api/v1/consent-purposes — name=${purposeName}, elements=${requestedElements.map(e=>e.name).join(',')}`);
-  let r = await fetch(`${OPENFGC_BASE}/api/v1/consent-purposes`, {
+  const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-purposes`, {
     method: 'POST', headers, body: JSON.stringify(purposeBody)
   });
   const purposeText = await r.text();
@@ -140,31 +146,10 @@ async function createConsentInOpenFGC(selectedElements, mandatoryElements) {
   }
   let purposeId; try { purposeId = JSON.parse(purposeText).id; } catch(e) { purposeId = '?'; }
   console.log(`[OpenFGC] Purpose created — id=${purposeId}`);
-
-  // Create consent record
-  const consentBody = {
-    type: 'kyc',
-    clientId: activeClientId,
-    recurringIndicator: false,
-    validityTime: 0, frequency: 0, dataAccessValidityDuration: 0,
-    purposes: [{ name: purposeName, elements: requestedElements.map(e => ({ name: e.name, isUserApproved: false })) }],
-    authorizations: [], attributes: {}
-  };
-  console.log(`[OpenFGC] POST /api/v1/consents — purpose=${purposeName}`);
-  r = await fetch(`${OPENFGC_BASE}/api/v1/consents`, {
-    method: 'POST', headers, body: JSON.stringify(consentBody)
-  });
-  const consentText = await r.text();
-  if (!r.ok) {
-    console.error('[OpenFGC] Consent creation failed:', r.status, consentText);
-    return null;
-  }
-  const consentId = JSON.parse(consentText).id;
-  console.log(`[OpenFGC] Consent created — id=${consentId}`);
-  return consentId;
+  return purposeId;
 }
 
-function createCIBARequestJWT(consentId) {
+function createCIBARequestJWT(purposeId) {
   const now = Math.floor(Date.now() / 1000);
   return jwt.sign({
     iss: activeClientId, iat: now, exp: now + 1500,
@@ -174,24 +159,16 @@ function createCIBARequestJWT(consentId) {
     scope: 'openid user:data',
     nbf: now - 2000,
     jti: `jti-${uuidv4()}`,
-    claims: { id_token: { intent_id: { value: consentId, essential: true } } },
+    claims: { id_token: { intent_id: { value: purposeId, essential: true } } },
     client_id: activeClientId,
     redirect_uri: REDIRECT_URI
   }, PRIVATE_KEY, { algorithm: 'PS256', header: { kid: SIGNING_KID, alg: 'PS256' } });
 }
 
-async function saveConsentAttribute(consentId, key, value) {
-  const r = await fetch(`${OPENFGC_BASE}/api/v1/consents/${consentId}`, {
-    method: 'PUT',
-    headers: { 'org-id': ORG_ID, 'TPP-client-id': activeClientId, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ attributes: { [key]: value } })
-  });
-  if (!r.ok) console.error(`[Consent] Failed to save attribute ${key}:`, r.status, await r.text());
-}
 
-async function initiateCIBA(consentId) {
-  console.log(`[CIBA] Initiating CIBA for consentId=${consentId}`);
-  const cibaJwt = createCIBARequestJWT(consentId);
+async function initiateCIBA(purposeId) {
+  console.log(`[CIBA] Initiating CIBA for purposeId=${purposeId}`);
+  const cibaJwt = createCIBARequestJWT(purposeId);
   console.log(`[CIBA] POST ${IS_BASE}/oauth2/ciba — client_id=${activeClientId}`);
   const r = await apiFetch(`${IS_BASE}/oauth2/ciba`, {
     method: 'POST',
@@ -216,11 +193,11 @@ async function initiateCIBA(consentId) {
   return null;
 }
 
-function buildWebAuthLink(consentId, authReqId) {
+function buildWebAuthLink(purposeId, authReqId) {
   const params = new URLSearchParams({
     binding_message: 'KYCAccess', client_id: activeClientId, nonce: authReqId,
     response_type: 'cibaAuthCode', scope: 'openid user:data',
-    intent_id: consentId, redirect_uri: REDIRECT_URI,
+    intent_id: purposeId, redirect_uri: REDIRECT_URI,
     ciba_web_auth_link: 'true', login_hint: 'john', prompt: 'consent'
   });
   const link = `${IS_PUBLIC_BASE}/oauth2/authorize?${params.toString()}`;
@@ -277,69 +254,35 @@ setInterval(async () => {
   for (const req of kycRequests) {
     if (req.status !== 'pending_approval') continue;
     try {
+      // Log first poll attempt once
+      if (!req.activityLog.some(e => e.msg.startsWith('Polling'))) {
+        addLog(req, 'Polling for citizen response…');
+      }
       const result = await pollForToken(req.authReqId);
       if (result.pending) continue;
       if (result.error) {
         req.status = 'rejected';
         req.statusMessage = result.description || result.error;
+        addLog(req, `Citizen rejected — ${result.error}`);
         req.updatedAt = new Date().toISOString();
         continue;
       }
       const tokenPayload = JSON.parse(Buffer.from(result.access_token.split('.')[1], 'base64').toString());
       console.log(`[Poll] Token received for req=${req.id} — ALL claims: ${JSON.stringify(tokenPayload)}`);
-      console.log(`[Poll] NIN for KYC call: ${req.nin}`);
       req.accessToken = result.access_token;
-
-      // Check for explicit rejection in consent record
-      try {
-        const cr = await fetch(`${OPENFGC_BASE}/api/v1/consents/${req.consentId}`, { headers: { 'org-id': ORG_ID } });
-        if (cr.ok) {
-          const cd = await cr.json();
-          const auth = (cd.authorizations || []).find(a => a.authorizationStatus);
-          if (auth && auth.authorizationStatus === 'rejected') {
-            req.status = 'rejected';
-            req.statusMessage = 'Citizen denied the consent request';
-            req.updatedAt = new Date().toISOString();
-            continue;
-          }
-        }
-      } catch (e) { /* proceed */ }
-
-      req.status = 'approved';
-      req.statusMessage = 'Consent approved, fetching KYC data...';
-      const kycData = await invokeKYCAPI(result.access_token, req.nin);
-      if (kycData.error) {
-        req.status = 'error';
-        req.statusMessage = `KYC API Error ${kycData.error}: ${kycData.body || '(no body)'}`.substring(0, 300);
-        console.error(`[Poll] KYC API error for req=${req.id}: status=${kycData.error} body=${kycData.body}`);
-      } else {
-        req.status = 'data_available';
-        req.statusMessage = 'KYC data verified and available';
-        req.kycData = kycData;
+      if (result.consent_id) {
+        req.consentId = result.consent_id;
+        console.log(`[Poll] Consent ID from token response: ${req.consentId}`);
       }
+      req.status = 'token_received';
+      req.statusMessage = 'Citizen approved — token received. Click "Get KYC Data" to retrieve data.';
+      addLog(req, 'Citizen approved — token received');
       req.updatedAt = new Date().toISOString();
     } catch (e) {
       console.error(`[Poll] Error for ${req.id}:`, e.message);
     }
   }
 }, 5000);
-
-// ===== Background: revocation check via gateway =====
-setInterval(async () => {
-  for (const req of kycRequests) {
-    if (req.status !== 'data_available' || !req.accessToken) continue;
-    try {
-      const result = await invokeKYCAPI(req.accessToken, req.nin);
-      if (result.consentRevoked) {
-        req.status = 'revoked';
-        req.statusMessage = `Consent revoked — gateway rejected access at ${new Date().toLocaleString()}`;
-        req.kycData = null;
-        req.updatedAt = new Date().toISOString();
-        console.log(`[Revoke] Request ${req.id} — consent revoked`);
-      }
-    } catch (e) { /* ignore transient errors */ }
-  }
-}, 10000);
 
 // ===== Bank portal API routes =====
 
@@ -383,28 +326,32 @@ app.post('/api/kyc-request', async (req, res) => {
   if (!nin) return res.status(400).json({ error: 'NIN is required' });
 
   try {
-    const consentId = await createConsentInOpenFGC(elements, mandatoryElements);
-    if (!consentId) return res.status(500).json({ error: 'Failed to create consent' });
+    const tempLog = [];
+    const purposeId = await createConsentInOpenFGC(elements, mandatoryElements);
+    if (!purposeId) return res.status(500).json({ error: 'Failed to create consent purpose' });
+    tempLog.push({ time: new Date().toISOString(), msg: `Purpose created — ${purposeId.substring(0, 8)}…` });
+    tempLog.push({ time: new Date().toISOString(), msg: 'Authorise request initiated' });
 
-    const ciba = await initiateCIBA(consentId);
+    const ciba = await initiateCIBA(purposeId);
     if (!ciba) return res.status(500).json({ error: 'Failed to initiate CIBA authorization' });
+    tempLog.push({ time: new Date().toISOString(), msg: `Auth request ID received — ${ciba.authReqId.substring(0, 12)}…` });
 
-    await saveConsentAttribute(consentId, 'auth_req_id', ciba.authReqId);
-    const webAuthLink = ciba.webAuthUrl || buildWebAuthLink(consentId, ciba.authReqId);
+    const webAuthLink = ciba.webAuthUrl || buildWebAuthLink(purposeId, ciba.authReqId);
     console.log(`[KYC-Request] webAuthLink source=${ciba.webAuthUrl ? 'IS-returned' : 'built-locally'}: ${webAuthLink}`);
 
     const kycReq = {
       id: uuidv4(), nin,
       customerName: customerName || 'N/A',
       accountType: accountType || 'Savings',
-      consentId, authReqId: ciba.authReqId, webAuthLink,
+      purposeId, consentId: null, authReqId: ciba.authReqId, webAuthLink,
       status: 'pending_approval', statusMessage: 'Waiting for citizen consent',
       kycData: null, accessToken: null,
+      activityLog: tempLog,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       createdBy: 'Branch Officer'
     };
     kycRequests.unshift(kycReq);
-    res.json({ id: kycReq.id, status: kycReq.status, webAuthLink, consentId });
+    res.json({ id: kycReq.id, status: kycReq.status, webAuthLink, purposeId });
   } catch (e) {
     console.error('[KYC-Request] Error:', e);
     res.status(500).json({ error: e.message });
@@ -419,19 +366,40 @@ app.get('/api/requests', (_req, res) => {
   })));
 });
 
-app.get('/api/requests/:id', async (req, res) => {
+app.get('/api/requests/:id', (req, res) => {
   const kycReq = kycRequests.find(r => r.id === req.params.id);
   if (!kycReq) return res.status(404).json({ error: 'Not found' });
-  if (kycReq.status === 'data_available' && kycReq.accessToken) {
-    try {
-      const result = await invokeKYCAPI(kycReq.accessToken, kycReq.nin);
-      if (result.consentRevoked) {
-        kycReq.status = 'revoked';
-        kycReq.statusMessage = `Consent revoked — gateway rejected access at ${new Date().toLocaleString()}`;
-        kycReq.kycData = null;
-        kycReq.updatedAt = new Date().toISOString();
-      }
-    } catch (e) { /* show cached state */ }
+  res.json({ ...kycReq, accessToken: undefined });
+});
+
+// On-demand KYC data fetch — triggered by bank officer clicking "Get KYC Data" or "Update KYC Data"
+app.post('/api/requests/:id/fetch', async (req, res) => {
+  const kycReq = kycRequests.find(r => r.id === req.params.id);
+  if (!kycReq) return res.status(404).json({ error: 'Not found' });
+  if (!kycReq.accessToken) return res.status(400).json({ error: 'No access token available' });
+
+  try {
+    const result = await invokeKYCAPI(kycReq.accessToken, kycReq.nin);
+    if (result.consentRevoked) {
+      kycReq.status = 'revoked';
+      kycReq.statusMessage = 'Consent revoked — data access denied';
+      kycReq.kycData = null;
+      kycReq.updatedAt = new Date().toISOString();
+      addLog(kycReq, 'Consent revoked — data access denied by gateway');
+    } else if (result.error) {
+      kycReq.statusMessage = `KYC API Error ${result.error}`;
+      kycReq.updatedAt = new Date().toISOString();
+      addLog(kycReq, `KYC API error — ${result.error}`);
+    } else {
+      kycReq.status = 'data_available';
+      kycReq.statusMessage = 'KYC data retrieved successfully';
+      kycReq.kycData = result;
+      kycReq.updatedAt = new Date().toISOString();
+      addLog(kycReq, 'KYC data retrieved');
+    }
+  } catch (e) {
+    console.error('[Fetch] Error:', e.message);
+    return res.status(500).json({ error: e.message });
   }
   res.json({ ...kycReq, accessToken: undefined });
 });

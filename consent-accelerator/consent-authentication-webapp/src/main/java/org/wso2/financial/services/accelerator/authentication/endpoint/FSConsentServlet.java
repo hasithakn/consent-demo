@@ -137,39 +137,41 @@ public class FSConsentServlet extends HttpServlet {
             HttpServletResponse response)
             throws IOException, URISyntaxException {
 
-        String consentId = null;
+        String purposeId = null;
 
         // Log session data keys for debugging
         log.info("Session data keys: {}", sessionData.keySet());
 
-        // First, try to extract purposes from request object if present
+        // Extract purposeId from intent_id in the CIBA request object / query params
         if (sessionData.has("spQueryParams")) {
             String spQueryParams = sessionData.getString("spQueryParams");
             log.info("spQueryParams value: {}", spQueryParams);
-            consentId = extractConsentIdFromQueryParams(spQueryParams);
+            purposeId = extractConsentIdFromQueryParams(spQueryParams);
 
-            if (consentId != null && consentId.length() > 0) {
-                log.info("Extracted {} consentId from request object: {}",
-                        consentId.length(), consentId);
+            if (purposeId != null && purposeId.length() > 0) {
+                log.info("Extracted purposeId from intent_id: {}", purposeId);
             }
         } else {
             log.warn("sessionData does not contain spQueryParams key");
         }
 
-        if (consentId == null || consentId.length() == 0) {
-            log.warn("No consentId found in request object");
+        if (purposeId == null || purposeId.length() == 0) {
+            log.warn("No purposeId found in intent_id");
             return null;
         }
 
-        JSONObject consentDetails = ConsentUtils.getConsentDetails(consentId, getServletContext());
-
-        if (consentDetails != null) {
-            sessionData.put("consentId", consentId);
-            sessionData.put("consentDetails", consentDetails);
-        } else {
-            log.warn("No consent details found for consentId: " + consentId);
+        // Fetch purpose details — consent is not yet created at this stage
+        JSONObject purposeDetails = ConsentUtils.getPurposeDetails(purposeId);
+        if (purposeDetails == null) {
+            log.warn("No purpose details found for purposeId: {}", purposeId);
             return null;
         }
+
+        // Build a consent-compatible view from the purpose for the JSP/getPurposeList
+        JSONObject consentLikeDetails = buildConsentViewFromPurpose(purposeDetails);
+
+        sessionData.put("purposeId", purposeId);
+        sessionData.put("consentDetails", consentLikeDetails);
 
         // Check for error redirects
         String errorResponse = AuthenticationUtils.getErrorResponseForRedirectURL(sessionData);
@@ -180,6 +182,40 @@ public class FSConsentServlet extends HttpServlet {
         }
 
         return sessionData;
+    }
+
+    /**
+     * Builds a consent-compatible JSON structure from a purpose object.
+     * The result has the same shape that getPurposeList() and FSConsentConfirmServlet expect.
+     *
+     * @param purpose purpose JSON from /api/v1/consent-purposes/{id}
+     * @return consent-like JSON with clientId and purposes[].elements[]
+     */
+    private JSONObject buildConsentViewFromPurpose(JSONObject purpose) {
+        JSONObject view = new JSONObject();
+        view.put("clientId", purpose.optString("clientId", ""));
+
+        JSONArray elements = purpose.optJSONArray("elements");
+        JSONArray mappedElements = new JSONArray();
+        if (elements != null) {
+            for (int i = 0; i < elements.length(); i++) {
+                JSONObject el = elements.getJSONObject(i);
+                JSONObject mapped = new JSONObject();
+                mapped.put("name", el.getString("name"));
+                mapped.put("isUserApproved", false);
+                mappedElements.put(mapped);
+            }
+        }
+
+        JSONObject purposeEntry = new JSONObject();
+        purposeEntry.put("name", purpose.optString("name", ""));
+        purposeEntry.put("elements", mappedElements);
+
+        JSONArray purposesArray = new JSONArray();
+        purposesArray.put(purposeEntry);
+        view.put("purposes", purposesArray);
+
+        return view;
     }
 
     /**

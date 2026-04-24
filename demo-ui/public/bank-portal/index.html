@@ -202,6 +202,30 @@
   </footer>
 </div>
 
+<!-- Submit confirmation modal -->
+<div id="submit-modal" class="submit-modal-overlay" style="display:none">
+  <div class="submit-modal">
+    <div class="submit-modal-header">
+      <span class="modal-check">✅</span>
+      <h3>KYC Request Submitted</h3>
+    </div>
+    <div class="submit-modal-section">
+      <div class="submit-modal-label">Purpose ID</div>
+      <div class="purpose-id-box" id="modal-purpose-id">—</div>
+    </div>
+    <div class="submit-modal-section">
+      <div class="submit-modal-label">Data Fields Requested</div>
+      <ul class="elements-submitted" id="modal-elements"></ul>
+    </div>
+    <div class="submit-waiting-msg">
+      Consent request sent to citizen. Bank Portal is now waiting for citizen approval.
+    </div>
+    <div class="submit-modal-footer">
+      <button class="btn btn-primary" onclick="closeSubmitModal()">OK — View Dashboard</button>
+    </div>
+  </div>
+</div>
+
 <script src="app.js"></script>
 </body>
 </html>

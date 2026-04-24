@@ -84,17 +84,16 @@ async function loadElementsChecklist() {
       const displayName = el.displayName || el.description || EL_DISPLAY[el.name] || el.name;
       const selected  = DEFAULT_SELECTED.has(el.name);
       const mandatory = DEFAULT_MANDATORY.has(el.name);
+      const cbId = `cb-${el.name}`;
       const div = document.createElement('div');
       div.className = 'element-row';
       div.innerHTML = `
-        <label class="element-check">
-          <input type="checkbox" name="element" value="${el.name}" ${selected ? 'checked' : ''}>
-          ${escapeHtml(displayName)}
-        </label>
+        <input type="checkbox" class="element-checkbox" id="${cbId}" name="element" value="${el.name}" ${selected ? 'checked' : ''}>
         <select class="element-type" data-element="${el.name}">
           <option value="mandatory" ${mandatory ? 'selected' : ''}>Mandatory</option>
           <option value="optional" ${mandatory ? '' : 'selected'}>Optional</option>
         </select>
+        <label class="element-label" for="${cbId}">${escapeHtml(displayName)}</label>
       `;
       container.appendChild(div);
     });
@@ -116,7 +115,7 @@ document.getElementById('btn-submit-kyc').addEventListener('click', async () => 
   try {
     // Collect selected elements and their mandatory/optional flags
     const selectedElements = Array.from(
-      document.querySelectorAll('#elements-checklist input[type="checkbox"]:checked')
+      document.querySelectorAll('#elements-checklist input.element-checkbox:checked')
     ).map(cb => cb.value);
 
     const mandatoryElements = Array.from(
@@ -141,9 +140,8 @@ document.getElementById('btn-submit-kyc').addEventListener('click', async () => 
       // Reset form to defaults
       document.getElementById('nin-input').value = 'NIC123456';
       document.getElementById('name-input').value = '';
-      // Navigate to dashboard
-      navigateTo('dashboard');
-      showToast('KYC request submitted — waiting for citizen approval.', 'success');
+      // Show confirmation modal with purposeId and elements
+      showSubmitModal(data.purposeId, selectedElements);
     } else {
       alert('Error: ' + (data.error || 'Unknown error'));
     }
@@ -154,6 +152,27 @@ document.getElementById('btn-submit-kyc').addEventListener('click', async () => 
   btn.disabled = false;
   btn.textContent = 'Submit KYC Request';
 });
+
+function showSubmitModal(purposeId, elements) {
+  document.getElementById('modal-purpose-id').textContent = purposeId || '—';
+  const EL_DISPLAY_LOCAL = {
+    first_name: 'First Name', last_name: 'Last Name', date_of_birth: 'Date of Birth',
+    gender: 'Gender', nationality: 'Nationality', middle_name: 'Middle Name',
+    place_of_birth: 'Place of Birth', marital_status: 'Marital Status',
+    tax_id: 'Tax ID', source_of_funds: 'Source of Funds',
+    contact: 'Contact Details', identifiers: 'Identity Documents', employment: 'Employment Details'
+  };
+  const ul = document.getElementById('modal-elements');
+  ul.innerHTML = (elements || []).map(name =>
+    `<li>${escapeHtml(EL_DISPLAY_LOCAL[name] || name)}</li>`
+  ).join('');
+  document.getElementById('submit-modal').style.display = 'flex';
+}
+
+function closeSubmitModal() {
+  document.getElementById('submit-modal').style.display = 'none';
+  navigateTo('dashboard');
+}
 
 function showToast(message, type) {
   const existing = document.getElementById('portal-toast');
@@ -186,11 +205,12 @@ async function refreshRequests() {
 function statusBadge(status) {
   const map = {
     'pending_approval': ['Pending', 'badge-pending'],
-    'approved': ['Approved', 'badge-approved'],
-    'data_available': ['Data Ready', 'badge-data'],
-    'rejected': ['Rejected', 'badge-rejected'],
-    'revoked': ['Revoked', 'badge-revoked'],
-    'error': ['Error', 'badge-error'],
+    'token_received':   ['Approved', 'badge-approved'],
+    'approved':         ['Approved', 'badge-approved'],
+    'data_available':   ['Data Ready', 'badge-data'],
+    'rejected':         ['Rejected', 'badge-rejected'],
+    'revoked':          ['Revoked', 'badge-revoked'],
+    'error':            ['Error', 'badge-error'],
   };
   const [text, cls] = map[status] || [status, ''];
   return `<span class="badge ${cls}">${text}</span>`;
@@ -205,7 +225,7 @@ function formatTime(iso) {
 function updateDashboard(data) {
   document.getElementById('stat-total').textContent = data.length;
   document.getElementById('stat-pending').textContent = data.filter(r => r.status === 'pending_approval').length;
-  document.getElementById('stat-approved').textContent = data.filter(r => r.status === 'data_available').length;
+  document.getElementById('stat-approved').textContent = data.filter(r => r.status === 'data_available' || r.status === 'token_received').length;
   document.getElementById('stat-rejected').textContent = data.filter(r => r.status === 'rejected' || r.status === 'revoked').length;
 
   const tbody = document.getElementById('dashboard-tbody');
@@ -288,15 +308,15 @@ function renderDetail(data) {
     <div class="detail-section">
       <h3>Request Information</h3>
       <div class="detail-grid">
-        <div class="detail-label">Request ID</div><div class="detail-value">${escapeHtml(data.id)}</div>
+        <div class="detail-label">Request ID</div><div class="detail-value" style="font-size:11px;word-break:break-all">${escapeHtml(data.id)}</div>
         <div class="detail-label">NIN</div><div class="detail-value">${escapeHtml(data.nin)}</div>
         <div class="detail-label">Customer Name</div><div class="detail-value">${escapeHtml(data.customerName)}</div>
         <div class="detail-label">Account Type</div><div class="detail-value">${escapeHtml(data.accountType)}</div>
         <div class="detail-label">Status</div><div class="detail-value">${statusBadge(data.status)}</div>
+        <div class="detail-label">Purpose ID</div><div class="detail-value" style="font-size:11px;word-break:break-all;font-family:'Courier New',monospace">${escapeHtml(data.purposeId || '—')}</div>
+        ${data.consentId ? `<div class="detail-label">Consent ID</div><div class="detail-value" style="font-size:11px;word-break:break-all;font-family:'Courier New',monospace">${escapeHtml(data.consentId)}</div>` : ''}
         <div class="detail-label">Created</div><div class="detail-value">${new Date(data.createdAt).toLocaleString()}</div>
-        <div class="detail-label">Updated</div><div class="detail-value">${new Date(data.updatedAt).toLocaleString()}</div>
         <div class="detail-label">Created By</div><div class="detail-value">${escapeHtml(data.createdBy)}</div>
-        <div class="detail-label">Consent ID</div><div class="detail-value" style="font-size:11px;word-break:break-all">${escapeHtml(data.consentId)}</div>
       </div>
     </div>
   `;
@@ -312,11 +332,14 @@ function renderDetail(data) {
     `;
   }
 
-  if (data.statusMessage) {
+  // Get KYC Data button — shown when token received but data not yet fetched
+  if (data.status === 'token_received') {
     html += `
-      <div class="detail-section">
-        <h3>Status Message</h3>
-        <p>${escapeHtml(data.statusMessage)}</p>
+      <div class="detail-section" style="text-align:center;padding:20px 0">
+        <p style="color:var(--success);font-weight:600;margin-bottom:14px">Citizen approved the consent request.</p>
+        <button class="btn-get-data" id="btn-fetch-data" onclick="fetchKYCData('${escapeHtml(data.id)}')">
+          Get KYC Data
+        </button>
       </div>
     `;
   }
@@ -326,6 +349,11 @@ function renderDetail(data) {
       <div class="detail-section">
         <h3>Verified KYC Data</h3>
         ${renderKYCData(data.kycData)}
+        <div style="margin-top:14px">
+          <button class="btn-get-data" id="btn-fetch-data" onclick="fetchKYCData('${escapeHtml(data.id)}')">
+            Update KYC Data
+          </button>
+        </div>
       </div>
     `;
 
@@ -362,7 +390,40 @@ function renderDetail(data) {
     `;
   }
 
+  // Activity log — always shown at bottom
+  if (data.activityLog && data.activityLog.length > 0) {
+    html += `
+      <div class="detail-section">
+        <h3>Activity Log</h3>
+        <div class="activity-log">
+          ${data.activityLog.map(e => `
+            <div class="activity-entry">
+              <span class="activity-time">${formatTime(e.time)}</span>
+              <span class="activity-dot"></span>
+              <span class="activity-msg">${escapeHtml(e.msg)}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
   body.innerHTML = html;
+}
+
+async function fetchKYCData(id) {
+  const btn = document.getElementById('btn-fetch-data');
+  if (btn) { btn.disabled = true; btn.textContent = 'Fetching…'; }
+  try {
+    const r = await fetch(`${API}/api/requests/${encodeURIComponent(id)}/fetch`, { method: 'POST' });
+    const data = await r.json();
+    if (!r.ok) { alert('Error: ' + (data.error || 'Unknown')); return; }
+    renderDetail(data);
+    refreshRequests();
+  } catch (e) {
+    alert('Failed to fetch data: ' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Get KYC Data'; }
+  }
 }
 
 function renderKYCData(kycData) {

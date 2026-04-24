@@ -80,7 +80,8 @@ public class FSConsentConfirmServlet extends HttpServlet {
         boolean approval = request.getParameter("consent") != null &&
                 request.getParameter("consent").equals("true");
 
-        String consentId = cachedDataSet.getString("consentId");
+        String purposeId = cachedDataSet.optString("purposeId", null);
+        String consentId = null;
         try {
             // Get commonAuthId from cookies
             String commonAuthId = null;
@@ -125,18 +126,18 @@ public class FSConsentConfirmServlet extends HttpServlet {
                 }
             }
 
-            // Update consent with all data including authorization
-            JSONObject updatedConsent = updateConsentWithAuthorization(consentId, approvedPurposes, user, commonAuthId,
+            // Create consent on citizen action (approve or reject)
+            JSONObject createdConsent = createConsentFromPurpose(purposeId, approvedPurposes, user, commonAuthId,
                     validityTime, dataAccessValidityDuration, cachedDataSet, approval,
                     getServletContext());
 
-            if (updatedConsent != null) {
-                consentId = updatedConsent.optString("id", null);
+            if (createdConsent != null) {
+                consentId = createdConsent.optString("id", null);
                 if (consentId == null || consentId.isEmpty()) {
-                    consentId = updatedConsent.optString("_id",
-                            updatedConsent.optString("consentId", null));
+                    consentId = createdConsent.optString("_id",
+                            createdConsent.optString("consentId", null));
                 }
-                log.info("Successfully updated and authorized consent with ID: {}", consentId);
+                log.info("Successfully created consent with ID: {}", consentId);
             } else {
                 log.error("Failed to create consent");
                 response.sendRedirect("retry.do?status=Error&statusMsg=consent_creation_failed");
@@ -169,65 +170,60 @@ public class FSConsentConfirmServlet extends HttpServlet {
     }
 
     /**
-     * Create a new consent with authorization in a single API call.
+     * Create a new consent record based on the purpose, triggered by citizen action (approve or reject).
+     * The auth_req_id is bound to the consent via attributes so OBCibaGrantHandler can resolve the consent ID.
      *
-     * @param approvedPurposes           the purposes approved by user
-     * @param userId                     the user ID
-     * @param commonAuthId               the commonAuthId from cookie
+     * @param purposeId                  the purpose ID (passed as intent_id in the CIBA request)
+     * @param approvedPurposes           element names checked by the user
+     * @param userId                     the logged-in user ID
+     * @param commonAuthId               the commonAuthId cookie value
      * @param validityTime               consent expiry timestamp (can be null)
-     * @param dataAccessValidityDuration data access duration in seconds (can be
-     *                                   null)
-     * @param sessionData                session data
+     * @param dataAccessValidityDuration data access duration in seconds (can be null)
+     * @param sessionData                full session data from cache
+     * @param approval                   true if citizen approved, false if rejected
      * @param servletContext             servlet context
-     * @return created consent JSON object
-     * @throws IOException if an error occurs
+     * @return the created consent JSON object, or null on failure
      */
-    private JSONObject updateConsentWithAuthorization(String consentId, String[] approvedPurposes, String userId,
+    private JSONObject createConsentFromPurpose(String purposeId, String[] approvedPurposes, String userId,
             String commonAuthId, Long validityTime,
             Integer dataAccessValidityDuration,
-            JSONObject sessionData, Boolean approval, ServletContext servletContext)
-            throws IOException {
+            JSONObject sessionData, Boolean approval, ServletContext servletContext) {
 
-        JSONObject consentUpdateRequest = (JSONObject) sessionData.opt("consentDetails");
-
-        // Remove transient properties if present so they are not sent in update
-        if (consentUpdateRequest != null) {
-            consentUpdateRequest.remove("id");
-            consentUpdateRequest.remove("createdTime");
-            consentUpdateRequest.remove("updatedTime");
-            consentUpdateRequest.remove("status");
-            consentUpdateRequest.remove("modifiedResponse");
+        // consentDetails was built from the purpose in FSConsentServlet (clientId + purposes[].elements[])
+        JSONObject consentView = sessionData.optJSONObject("consentDetails");
+        if (consentView == null) {
+            log.error("No consentDetails found in session data for purposeId: {}", purposeId);
+            return null;
         }
-        consentUpdateRequest.put("validityTime", validityTime != null ? validityTime : 0);
-        consentUpdateRequest.put("dataAccessValidityDuration",
-                dataAccessValidityDuration != null ? dataAccessValidityDuration : 86400);
 
-        // Update element approval status in OpenFGC purposes format
-        JSONArray purposesArray = consentUpdateRequest.getJSONArray("purposes");
+        String clientId = consentView.optString("clientId", null);
+        JSONArray purposesArray = consentView.optJSONArray("purposes");
+
+        // Set isUserApproved on each element based on what the citizen checked
         List<String> approvedList = Arrays.asList(approvedPurposes != null ? approvedPurposes : new String[0]);
-        for (int i = 0; i < purposesArray.length(); i++) {
-            JSONObject purpose = purposesArray.getJSONObject(i);
-            JSONArray elements = purpose.optJSONArray("elements");
-            if (elements != null) {
-                for (int j = 0; j < elements.length(); j++) {
-                    JSONObject element = elements.getJSONObject(j);
-                    element.put("isUserApproved", approvedList.contains(element.getString("name")));
+        if (purposesArray != null) {
+            for (int i = 0; i < purposesArray.length(); i++) {
+                JSONObject purpose = purposesArray.getJSONObject(i);
+                JSONArray elements = purpose.optJSONArray("elements");
+                if (elements != null) {
+                    for (int j = 0; j < elements.length(); j++) {
+                        JSONObject element = elements.getJSONObject(j);
+                        element.put("isUserApproved", approvedList.contains(element.getString("name")));
+                    }
                 }
             }
         }
 
-        // Add attributes with commonAuthId and optionally auth_req_id for CIBA flows
+        // Build attributes — must include auth_req_id so OBCibaGrantHandler can look up this consent
         JSONObject attributes = new JSONObject();
         if (commonAuthId != null) {
             attributes.put("commonAuthId", commonAuthId);
         }
-
         try {
             String spQueryParams = sessionData.optString("spQueryParams", null);
             if (spQueryParams != null && !spQueryParams.isEmpty()) {
-                String[] pairs = spQueryParams.split("&");
                 Map<String, String> params = new HashMap<>();
-                for (String pair : pairs) {
+                for (String pair : spQueryParams.split("&")) {
                     int idx = pair.indexOf('=');
                     if (idx > 0) {
                         String key = URLDecoder.decode(pair.substring(0, idx), "UTF-8");
@@ -239,33 +235,44 @@ public class FSConsentConfirmServlet extends HttpServlet {
                 String nonce = params.get("nonce");
                 if ("cibaAuthCode".equals(responseType) && nonce != null && !nonce.isEmpty()) {
                     attributes.put("auth_req_id", nonce);
-                    log.info("Added auth_req_id attribute from spQueryParams nonce: {}", nonce);
+                    log.info("Bound auth_req_id from nonce: {}", nonce);
                 }
             }
         } catch (Exception e) {
             log.warn("Failed to parse spQueryParams for auth_req_id", e);
         }
-        consentUpdateRequest.put("attributes", attributes);
 
-        // Add authorizations array with approved purpose details
+        // Build authorization entry
         JSONArray authorizationsArray = new JSONArray();
         JSONObject authorization = new JSONObject();
         authorization.put("userId", userId);
         authorization.put("type", "authorisation");
         authorization.put("status", approval ? "approved" : "rejected");
         authorizationsArray.put(authorization);
-        consentUpdateRequest.put("authorizations", authorizationsArray);
 
-        JSONObject updateConsentResponse = ConsentUtils.updateConsent(consentId, consentUpdateRequest,
-                consentUpdateRequest.optString("clientId", null), servletContext);
-        if (updateConsentResponse != null) {
-            log.info("Consent update success.");
-            return updateConsentResponse;
+        // Assemble full consent creation payload
+        JSONObject consentPayload = new JSONObject();
+        consentPayload.put("type", "kyc");
+        consentPayload.put("clientId", clientId != null ? clientId : "");
+        consentPayload.put("recurringIndicator", false);
+        consentPayload.put("frequency", 0);
+        consentPayload.put("validityTime", validityTime != null ? validityTime : 0);
+        consentPayload.put("dataAccessValidityDuration",
+                dataAccessValidityDuration != null ? dataAccessValidityDuration : 86400);
+        consentPayload.put("purposes", purposesArray != null ? purposesArray : new JSONArray());
+        consentPayload.put("authorizations", authorizationsArray);
+        consentPayload.put("attributes", attributes);
+
+        log.info("Creating consent for purposeId={}, approval={}, clientId={}", purposeId, approval, clientId);
+
+        JSONObject created = ConsentUtils.createConsent(consentPayload, clientId);
+        if (created != null) {
+            log.info("Consent created successfully.");
+            return created;
         } else {
-            log.error("Failed to update consent.");
+            log.error("Failed to create consent for purposeId: {}", purposeId);
             return null;
         }
-
     }
 
     public static URI authorizeRequest(String consent, Map<String, String> cookies, String user, String sessionDataKey)

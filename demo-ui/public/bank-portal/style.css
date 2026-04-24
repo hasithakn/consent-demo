@@ -236,19 +236,14 @@ body {
 /* Checklist */
 .checklist { display: flex; flex-direction: column; gap: 4px; }
 
-/* Element row (checkbox + mandatory/optional dropdown) */
+/* Element row: [checkbox] [M/O select] [label] */
 .element-row {
   display: flex; align-items: center; gap: 8px;
   padding: 5px 10px; background: #fafafa; border: 1px solid #eee;
   border-radius: 4px; transition: background .15s;
 }
 .element-row:hover { background: #f0f4ff; }
-.element-check {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 12px; cursor: pointer; flex: 1; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.element-check input[type="checkbox"] {
+.element-checkbox {
   accent-color: var(--brand-mid);
   width: 13px; height: 13px; flex-shrink: 0; cursor: pointer;
 }
@@ -258,6 +253,73 @@ body {
   background: #fff; color: var(--text-primary);
   cursor: pointer; flex-shrink: 0;
 }
+.element-label {
+  font-size: 12px; cursor: pointer; flex: 1;
+}
+
+/* Activity log timeline */
+.activity-log { display: flex; flex-direction: column; }
+.activity-entry {
+  display: flex; align-items: baseline; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid #f0f0f0;
+}
+.activity-entry:last-child { border-bottom: none; }
+.activity-time {
+  font-size: 11px; color: var(--text-muted);
+  white-space: nowrap; min-width: 68px; flex-shrink: 0;
+}
+.activity-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--brand-light); flex-shrink: 0; margin-top: 3px;
+}
+.activity-msg { font-size: 13px; color: var(--text-primary); }
+
+/* Submit confirmation modal */
+.submit-modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.55); z-index: 400;
+  display: flex; align-items: center; justify-content: center;
+}
+.submit-modal {
+  background: #fff; border-radius: 8px; padding: 28px 28px 22px;
+  width: 500px; max-width: 92vw;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25);
+}
+.submit-modal-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+.submit-modal-header h3 { font-size: 16px; color: var(--brand-dark); margin: 0; }
+.submit-modal-header .modal-check { font-size: 22px; }
+.submit-modal-section { margin-bottom: 16px; }
+.submit-modal-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .4px; color: var(--text-muted); margin-bottom: 6px;
+}
+.purpose-id-box {
+  background: #f5f5f5; border: 1px solid var(--border); border-radius: 4px;
+  padding: 9px 12px; font-family: 'Courier New', monospace; font-size: 12px;
+  word-break: break-all; color: var(--text-primary);
+}
+.elements-submitted {
+  list-style: none; display: flex; flex-wrap: wrap; gap: 6px;
+}
+.elements-submitted li {
+  background: var(--brand-dark); color: #fff;
+  font-size: 11px; padding: 3px 9px; border-radius: 12px;
+}
+.submit-waiting-msg {
+  background: #e8f5e9; border: 1px solid #a5d6a7; border-radius: 6px;
+  padding: 12px 14px; font-size: 13px; color: var(--success);
+}
+.submit-modal-footer { display: flex; justify-content: flex-end; margin-top: 20px; }
+
+/* Get / Update KYC Data button */
+.btn-get-data {
+  background: var(--success); color: #fff;
+  padding: 11px 28px; border: none; border-radius: 4px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background .2s;
+}
+.btn-get-data:hover:not(:disabled) { background: #1b5e20; }
+.btn-get-data:disabled { opacity: .5; cursor: not-allowed; }
 
 /* Result panel */
 .result-panel {

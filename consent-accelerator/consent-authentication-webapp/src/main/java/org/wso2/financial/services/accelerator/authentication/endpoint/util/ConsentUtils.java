@@ -10,6 +10,7 @@ import javax.servlet.ServletContext;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -63,6 +64,69 @@ public class ConsentUtils {
     }
 
 
+
+    /**
+     * GET purpose details from external API by purpose ID.
+     *
+     * @param purposeId      the purpose ID to fetch
+     * @return purpose details JSON object, or null if not found
+     * @throws IOException if an error occurs
+     */
+    public static JSONObject getPurposeDetails(String purposeId) throws IOException {
+        String purposeApiUrl = OPENFGC_BASE_URL + "/api/v1/consent-purposes/" + purposeId;
+        CloseableHttpClient client = HttpClientBuilder.create().build();
+        HttpGet request = new HttpGet(purposeApiUrl);
+        request.addHeader("org-id", ORG_ID);
+        request.addHeader("client-id", CLIENT_ID);
+        request.addHeader("Accept", Constants.JSON);
+        HttpResponse response = client.execute(request);
+        if (response.getStatusLine().getStatusCode() == HttpURLConnection.HTTP_OK) {
+            String responseBody = IOUtils.toString(response.getEntity().getContent(),
+                    String.valueOf(StandardCharsets.UTF_8));
+            return new JSONObject(responseBody);
+        } else {
+            log.error("Failed to fetch purpose details. Status code: " +
+                    response.getStatusLine().getStatusCode());
+            return null;
+        }
+    }
+
+    /**
+     * POST a new consent record to external API.
+     *
+     * @param consentPayload the consent creation payload
+     * @param clientId       the client/TPP ID
+     * @return created consent JSON object, or null on failure
+     */
+    public static JSONObject createConsent(JSONObject consentPayload, String clientId) {
+        String consentApiUrl = OPENFGC_BASE_URL + "/api/v1/consents";
+        String resolvedClientId = (clientId != null && !clientId.isEmpty()) ? clientId : CLIENT_ID;
+        try (CloseableHttpClient client = HttpClientBuilder.create().build()) {
+            HttpPost createRequest = new HttpPost(consentApiUrl);
+            createRequest.addHeader("org-id", ORG_ID);
+            createRequest.addHeader("TPP-client-id", resolvedClientId);
+            createRequest.addHeader("Content-Type", Constants.JSON);
+            createRequest.addHeader("Accept", Constants.JSON);
+            StringEntity body = new StringEntity(consentPayload.toString(), ContentType.APPLICATION_JSON);
+            createRequest.setEntity(body);
+            HttpResponse response = client.execute(createRequest);
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode == HttpURLConnection.HTTP_OK || statusCode == HttpURLConnection.HTTP_CREATED) {
+                String responseBody = IOUtils.toString(response.getEntity().getContent(),
+                        String.valueOf(StandardCharsets.UTF_8));
+                log.info("Consent created successfully");
+                return new JSONObject(responseBody);
+            } else {
+                String errorBody = IOUtils.toString(response.getEntity().getContent(),
+                        String.valueOf(StandardCharsets.UTF_8));
+                log.error("Failed to create consent. Status code: {}, body: {}", statusCode, errorBody);
+                return null;
+            }
+        } catch (IOException e) {
+            log.error("Error creating consent", e);
+            return null;
+        }
+    }
 
     /**
      * Update consent details via external API.

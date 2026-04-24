@@ -187,10 +187,8 @@
 
 <header class="hub-header">
   <div class="brand">
-    <span class="brand-icon">🗄️</span>
-    <span class="brand-name">Digital Locker</span>
-    <span class="brand-sep">|</span>
-    <span class="brand-sub">Open Finance Consent Management · Demo Platform</span>
+    <span class="brand-icon">🔐</span>
+    <span class="brand-name">Consent Management DEMO Platform</span>
   </div>
   <span class="env-badge">Demo Environment</span>
 </header>
@@ -205,7 +203,7 @@
       <span class="portal-type">Data Fiduciary</span>
       <h3>Digital Locker Onboarding</h3>
       <p>Bank officers log in here to view available data elements and register their application to receive OAuth credentials.</p>
-      <span class="portal-url">localhost:3010/digital-locker/</span>
+
       <div class="portal-btn">Open Portal <span>↗</span></div>
     </a>
 
@@ -214,7 +212,7 @@
       <span class="portal-type">Third-Party Provider</span>
       <h3>National Bank Portal</h3>
       <p>Bank officers submit KYC requests, initiate CIBA consent flows, and retrieve verified citizen data once approved.</p>
-      <span class="portal-url">localhost:3010/bank-portal/</span>
+
       <div class="portal-btn">Open Portal <span>↗</span></div>
     </a>
 
@@ -223,7 +221,7 @@
       <span class="portal-type">Citizen</span>
       <h3>Digital Locker Citizen App</h3>
       <p>Citizens receive consent requests, review what data will be shared, and approve or reject access to their personal data.</p>
-      <span class="portal-url">localhost:3010/digital-locker/citizen/</span>
+
       <div class="portal-btn">Open App <span>↗</span></div>
     </a>
 
@@ -235,10 +233,10 @@
     <div class="flow-card">
       <p class="section-label">Demo Flow</p>
       <ol class="flow-list">
-        <li><span class="flow-num">1</span>Digital Locker operator registers data elements in OpenFGC via the Admin Console.</li>
+        <li><span class="flow-num">1</span>Digital Locker operator registers data elements in the Consent Manager via the Admin Console.</li>
         <li><span class="flow-num">2</span>Bank officer logs into the Digital Locker Onboarding portal and registers the bank app — receives a Client ID &amp; Secret.</li>
-        <li><span class="flow-num">3</span>Bank officer pastes credentials into the Bank Portal to activate it.</li>
-        <li><span class="flow-num">4</span>Bank officer submits a KYC request for a customer — a consent record is created and a CIBA flow is initiated.</li>
+        <li><span class="flow-num">3</span>Bank officer uses these credentials in the Bank Portal to communicate with Digital Locker.</li>
+        <li><span class="flow-num">4</span>Bank officer creates a purpose and initiates an authorise request to the citizen to share their data.</li>
         <li><span class="flow-num">5</span>Citizen opens the Digital Locker app, reviews the itemised data notice, and approves or rejects the request.</li>
         <li><span class="flow-num">6</span>Bank portal receives an access token scoped to the consent and retrieves the verified KYC data.</li>
         <li><span class="flow-num">7</span>Digital Locker enforces consent on every API call — only approved elements are returned. Revocation is instant.</li>
@@ -252,7 +250,6 @@
         <span class="setup-link-icon">⚙️</span>
         <h4>Digital Locker Admin Console</h4>
         <p>The Digital Locker defines the personal data elements it owns and manages on behalf of citizens.</p>
-        <span class="setup-url">localhost:3010/digital-locker/admin/</span>
       </a>
       <p class="setup-note">⚡ Run once before the demo to register data elements in the Consent Manager.</p>
     </div>
