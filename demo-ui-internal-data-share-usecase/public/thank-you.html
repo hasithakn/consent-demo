@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quotation Received — Life Insurance Provider</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #1e3a5f;
+    --primary-dark: #132540;
+    --primary-light: #e8f0fc;
+    --accent: #c8963a;
+    --accent-light: #fdf3e3;
+    --success: #2e7d32;
+    --success-light: #e8f5e9;
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  header {
+    background: var(--primary);
+    padding: 0 64px;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--accent); display: flex; align-items: center;
+    justify-content: center; font-size: 22px;
+  }
+  .brand-name { font-size: 18px; font-weight: 700; color: #fff; }
+  .brand-tagline { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 1px; }
+
+  /* Main */
+  main {
+    flex: 1;
+    max-width: 680px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 56px 24px 60px;
+  }
+
+  /* Success banner */
+  .success-banner {
+    background: var(--success-light);
+    border: 1px solid #a5d6a7;
+    border-radius: 16px;
+    padding: 32px;
+    text-align: center;
+    margin-bottom: 28px;
+  }
+  .success-icon { font-size: 56px; margin-bottom: 16px; display: block; }
+  .success-banner h1 { font-size: 26px; font-weight: 800; color: var(--success); margin-bottom: 8px; }
+  .success-banner p { font-size: 15px; color: #3a6b3c; line-height: 1.6; }
+
+  /* Reference card */
+  .ref-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .ref-card-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .8px; color: var(--muted); margin-bottom: 18px;
+  }
+  .ref-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    gap: 16px;
+  }
+  .ref-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .ref-key { font-size: 13px; color: var(--muted); flex-shrink: 0; }
+  .ref-val { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; word-break: break-all; }
+  .ref-val.mono { font-family: 'Courier New', monospace; font-size: 12px; color: var(--primary); }
+  .ref-val.consent-id {
+    font-family: 'Courier New', monospace; font-size: 11px;
+    color: var(--success); word-break: break-all;
+  }
+
+  /* Consent summary */
+  .consent-summary {
+    background: var(--primary-light);
+    border: 1px solid #c3d9f7;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 20px;
+  }
+  .consent-summary-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .8px; color: var(--primary); margin-bottom: 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .consent-item-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    font-size: 13px; color: #2a4a7a; padding: 6px 0;
+    border-bottom: 1px solid rgba(30,58,95,.08);
+  }
+  .consent-item-row:last-child { border-bottom: none; }
+  .consent-check { color: var(--success); font-weight: 700; flex-shrink: 0; }
+
+  /* Next steps */
+  .next-steps {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+  }
+  .next-steps-title {
+    font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 18px;
+  }
+  .step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary-light); color: var(--primary);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-content h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .step-content p  { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+  /* CTA */
+  .cta-area { text-align: center; }
+  .btn-home {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--primary); color: #fff;
+    padding: 14px 32px; border-radius: 10px;
+    font-size: 15px; font-weight: 700; text-decoration: none;
+    transition: background .2s;
+  }
+  .btn-home:hover { background: var(--primary-dark); }
+
+  /* Footer */
+  footer {
+    background: var(--primary-dark);
+    padding: 20px 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: auto;
+  }
+  .footer-brand { font-size: 12px; color: rgba(255,255,255,.4); }
+  .footer-links { display: flex; gap: 16px; }
+  .footer-links a { font-size: 12px; color: rgba(255,255,255,.4); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">🛡️</div>
+    <div>
+      <div class="brand-name" id="company-name">Life Insurance Provider</div>
+      <div class="brand-tagline">Protecting Families Since 1985</div>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <div class="success-banner">
+    <span class="success-icon">✅</span>
+    <h1>Thank You, <span id="applicant-name">Applicant</span>!</h1>
+    <p>Your quotation request has been received and your consent has been recorded. We'll send your personalised life insurance quote to your email shortly.</p>
+  </div>
+
+  <!-- Reference details -->
+  <div class="ref-card">
+    <div class="ref-card-title">Submission Details</div>
+    <div class="ref-row">
+      <span class="ref-key">Applicant</span>
+      <span class="ref-val" id="ref-name">—</span>
+    </div>
+    <div class="ref-row">
+      <span class="ref-key">Email</span>
+      <span class="ref-val" id="ref-email">—</span>
+    </div>
+    <div class="ref-row">
+      <span class="ref-key">Quote Reference</span>
+      <span class="ref-val mono" id="ref-quote">—</span>
+    </div>
+    <div class="ref-row" id="consent-id-row">
+      <span class="ref-key">Consent Record ID</span>
+      <span class="ref-val consent-id" id="ref-consent-id">—</span>
+    </div>
+  </div>
+
+  <!-- Consent summary -->
+  <div class="consent-summary">
+    <div class="consent-summary-title">🔐 Consent Recorded</div>
+    <div class="consent-item-row">
+      <span class="consent-check">✓</span>
+      Privacy Policy &amp; Data Collection for Insurance Policy — <strong>Accepted</strong>
+    </div>
+    <div class="consent-item-row" id="marketing-row" style="display:none;">
+      <span class="consent-check">✓</span>
+      Marketing Materials via Email — <strong>Opted In</strong>
+    </div>
+  </div>
+
+  <!-- Next steps -->
+  <div class="next-steps">
+    <div class="next-steps-title">What happens next?</div>
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Quotation Email</h4>
+        <p>You'll receive a detailed quotation with premium options in your inbox within minutes.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Review Your Options</h4>
+        <p>Our advisor may follow up to walk you through the best plan options based on your profile.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Activate Your Policy</h4>
+        <p>Choose your plan and activate your coverage instantly — no medical exam required for most plans.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-area">
+    <a href="/" class="btn-home">← Back to Home</a>
+  </div>
+
+</main>
+
+<footer>
+  <span class="footer-brand" id="footer-company">Life Insurance Provider © 2025</span>
+  <div class="footer-links">
+    <a href="#">Privacy Policy</a>
+    <a href="#">Terms</a>
+  </div>
+</footer>
+
+<script>
+  function generateQuoteRef() {
+    var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    var ref = 'QT-';
+    for (var i = 0; i < 8; i++) {
+      ref += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return ref;
+  }
+
+  fetch('/api/config').then(function(r) { return r.json(); }).then(function(cfg) {
+    var name = cfg.companyName || 'Life Insurance Provider';
+    document.getElementById('company-name').textContent = name;
+    document.getElementById('footer-company').textContent = name + ' © 2025';
+    document.title = 'Quotation Received — ' + name;
+  }).catch(function() {});
+
+  var applicantName = sessionStorage.getItem('quotation_name')      || 'Applicant';
+  var email         = sessionStorage.getItem('quotation_email')     || '—';
+  var consentId     = sessionStorage.getItem('quotation_consent_id')|| '';
+  var marketing     = sessionStorage.getItem('quotation_marketing') === 'yes';
+
+  document.getElementById('applicant-name').textContent = applicantName.split(' ')[0];
+  document.getElementById('ref-name').textContent       = applicantName;
+  document.getElementById('ref-email').textContent      = email;
+  document.getElementById('ref-quote').textContent      = generateQuoteRef();
+
+  if (consentId) {
+    document.getElementById('ref-consent-id').textContent = consentId;
+  } else {
+    document.getElementById('consent-id-row').style.display = 'none';
+  }
+
+  if (marketing) {
+    document.getElementById('marketing-row').style.display = 'flex';
+  }
+
+  // Clear session data after reading
+  sessionStorage.removeItem('quotation_name');
+  sessionStorage.removeItem('quotation_email');
+  sessionStorage.removeItem('quotation_consent_id');
+  sessionStorage.removeItem('quotation_marketing');
+</script>
+</body>
+</html>
