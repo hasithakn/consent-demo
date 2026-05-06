@@ -35,7 +35,7 @@ const ELEMENT_DEFINITIONS = [
     properties: { jsonPath: '$.applicant.age', resourcePath: '/applicant/{id}' }
   },
   {
-    name: 'agree_marketing_email',
+    name: 'marketing_via_email',
     displayName: 'Agree to send marketing materials via email',
     description: 'Consent to receive marketing materials and promotional offers via email',
     type: 'resource-field',
@@ -48,7 +48,7 @@ const PURPOSE_DEFINITIONS = [
   {
     name: 'marketing_via_email',
     description: 'We will send you personalised insurance offers, policy renewal reminders, and helpful tips on protecting your family — delivered directly to your inbox. You can unsubscribe at any time.',
-    elements: [{ name: 'agree_marketing_email', isMandatory: false }]
+    elements: [{ name: 'marketing_via_email', isMandatory: false }]
   },
   {
     name: 'create_custom_insurance_policy',
