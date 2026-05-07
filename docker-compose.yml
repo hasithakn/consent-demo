@@ -94,6 +94,20 @@ services:
         aliases:
           - identity-server
 
+  insurance-demo-ui:
+    build:
+      context: .
+      dockerfile: demo-ui-internal-data-share-usecase/Dockerfile
+    container_name: consent-insurance-demo-ui
+    ports:
+      - "3020:3020"
+    environment:
+      OPENFGC_BASE: http://openfgc:3000
+    depends_on:
+      - openfgc
+    networks:
+      - consent-network
+
   demo-ui:
     build:
       context: .
