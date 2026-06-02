@@ -52,7 +52,7 @@ const PURPOSE_DEFINITIONS = [
   },
   {
     name: 'create_custom_insurance_policy',
-    description: 'We collect your full name, email address, mobile number, and age to design a personalised life insurance plan tailored to your specific needs. Your age enables us to calculate an accurate premium based on your risk profile. Your contact details ensure we can deliver your policy documents, send renewal notices, and reach you if we need to discuss your coverage. Your name is used to personalise your policy agreement.',
+    description: 'We collect your full name, email address, and age to design a personalised life insurance plan tailored to your specific needs. Your age enables us to calculate an accurate premium based on your risk profile. Your contact details ensure we can deliver your policy documents, send renewal notices, and reach you if we need to discuss your coverage. Your name is used to personalise your policy agreement.',
     elements: [
       { name: 'name',  isMandatory: true },
       { name: 'email', isMandatory: true },
@@ -61,14 +61,46 @@ const PURPOSE_DEFINITIONS = [
   }
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const fgcHeaders = () => ({
-  'Content-Type': 'application/json',
-  'org-id': ORG_ID,
-  'TPP-client-id': ORG_ID
-});
+// ─── API Request Logger ───────────────────────────────────────────────────────
+const apiLogs = [];
+
+function logCall(method, url, reqBody, status, resBody) {
+  apiLogs.unshift({
+    id: Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+    ts: new Date().toISOString(),
+    method,
+    url,
+    reqBody: reqBody || null,
+    status,
+    resBody
+  });
+  if (apiLogs.length > 40) apiLogs.pop();
+}
+
+async function fgcFetch(method, urlPath, body) {
+  const url = `${OPENFGC_BASE}${urlPath}`;
+  const opts = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'org-id': ORG_ID,
+      'TPP-client-id': ORG_ID
+    }
+  };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(url, opts);
+  const text = await r.text();
+  let data;
+  try { data = JSON.parse(text); } catch (e) { data = { raw: text }; }
+  logCall(method, url, body !== undefined ? body : null, r.status, data);
+  return { ok: r.ok, status: r.status, data };
+}
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
+
+app.get('/api/logs', (_, res) => {
+  res.json(apiLogs.slice(0, 20));
+});
 
 app.get('/api/config', (_, res) => {
   res.json({ companyName: config.companyName, orgId: ORG_ID });
@@ -76,9 +108,8 @@ app.get('/api/config', (_, res) => {
 
 app.get('/api/elements', async (_, res) => {
   try {
-    const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-elements?limit=100`, { headers: fgcHeaders() });
-    const data = await r.json();
-    res.status(r.status).json(data);
+    const { status, data } = await fgcFetch('GET', '/api/v1/consent-elements?limit=100');
+    res.status(status).json(data);
   } catch (e) {
     console.error('[Elements] GET error:', e.message);
     res.status(500).json({ error: e.message });
@@ -90,13 +121,92 @@ app.get('/api/purposes', async (req, res) => {
     const qs = req.query.name
       ? `?name=${encodeURIComponent(req.query.name)}`
       : '?limit=50';
-    const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-purposes${qs}`, { headers: fgcHeaders() });
-    const data = await r.json();
-    res.status(r.status).json(data);
+    const { status, data } = await fgcFetch('GET', `/api/v1/consent-purposes${qs}`);
+    res.status(status).json(data);
   } catch (e) {
     console.error('[Purposes] GET error:', e.message);
     res.status(500).json({ error: e.message });
   }
+});
+
+// List consents for a specific user
+app.get('/api/user-consents', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ error: 'userId is required' });
+    let qs = `?userIds=${encodeURIComponent(userId)}&limit=50`;
+    if (req.query.purposeName) qs += `&purposeName=${encodeURIComponent(req.query.purposeName)}`;
+    const { status, data } = await fgcFetch('GET', `/api/v1/consents${qs}`);
+    res.status(status).json(data);
+  } catch (e) {
+    console.error('[UserConsents] GET error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Get a single consent by ID
+app.get('/api/consents/:id', async (req, res) => {
+  try {
+    const { status, data } = await fgcFetch('GET', `/api/v1/consents/${req.params.id}`);
+    res.status(status).json(data);
+  } catch (e) {
+    console.error('[Consent] GET error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Revoke a consent
+app.post('/api/consents/:id/revoke', async (req, res) => {
+  try {
+    const body = {
+      actionBy: req.body.actionBy || 'user',
+      revocationReason: req.body.revocationReason || 'User request'
+    };
+    const { status, data } = await fgcFetch('PUT', `/api/v1/consents/${req.params.id}/revoke`, body);
+    res.status(status).json(data);
+  } catch (e) {
+    console.error('[Consent] Revoke error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Anonymize a consent — replace userId with anon token, update via PUT
+app.post('/api/consents/:id/anonymize', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const anonId = 'anon_' + id.replace(/-/g, '').substring(0, 8);
+
+    const getResult = await fgcFetch('GET', `/api/v1/consents/${id}`);
+    if (!getResult.ok) return res.status(getResult.status).json(getResult.data);
+
+    const c = getResult.data;
+    const putPayload = {
+      type: c.type,
+      validityTime: c.validityTime,
+      recurringIndicator: c.recurringIndicator || false,
+      dataAccessValidityDuration: c.dataAccessValidityDuration || 0,
+      frequency: c.frequency || 0,
+      purposes: c.purposes,
+      attributes: Object.assign({}, c.attributes, { userId: anonId }),
+      authorizations: (c.authorizations || []).map(a => {
+        const s = (a.status || '').toUpperCase();
+        const safeStatus = s.startsWith('SYS_') ? 'REJECTED' : a.status;
+        return Object.assign({}, a, { userId: anonId, status: safeStatus });
+      })
+    };
+
+    const putResult = await fgcFetch('PUT', `/api/v1/consents/${id}`, putPayload);
+    res.status(putResult.status).json(putResult.data);
+  } catch (e) {
+    console.error('[Consent] Anonymize error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Clear API logs
+app.delete('/api/logs', (_, res) => {
+  apiLogs.length = 0;
+  res.json({ cleared: true });
 });
 
 // One-time setup: create all elements and purposes (idempotent)
@@ -106,8 +216,8 @@ app.post('/api/setup/create', async (_, res) => {
   // ── Elements ──
   let existing = [];
   try {
-    const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-elements?limit=100`, { headers: fgcHeaders() });
-    if (r.ok) { const d = await r.json(); existing = d.data || d || []; }
+    const { ok, data } = await fgcFetch('GET', '/api/v1/consent-elements?limit=100');
+    if (ok) existing = data.data || data || [];
   } catch (e) { /* proceed without existing list */ }
 
   const existingByName = {};
@@ -129,21 +239,17 @@ app.post('/api/setup/create', async (_, res) => {
         properties:  d.properties
       }));
       console.log(`[Setup] Creating ${toCreate.length} element(s):`, toCreate.map(d => d.name).join(', '));
-      const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-elements`, {
-        method: 'POST', headers: fgcHeaders(), body: JSON.stringify(payload)
-      });
-      const text = await r.text();
-      if (r.ok) {
-        let created; try { created = JSON.parse(text); } catch (e) { created = []; }
-        const list = Array.isArray(created) ? created : [created];
+      const { ok, status, data } = await fgcFetch('POST', '/api/v1/consent-elements', payload);
+      if (ok) {
+        const list = Array.isArray(data) ? data : [data];
         const idByName = {};
         list.forEach(el => { if (el.name) idByName[el.name] = el.id; });
         toCreate.forEach(d => {
           results.elements.push({ name: d.name, status: 'created', id: idByName[d.name] || null });
         });
       } else {
-        console.error(`[Setup] Element batch create failed (HTTP ${r.status}):`, text);
-        toCreate.forEach(d => results.elements.push({ name: d.name, status: 'error', error: text }));
+        console.error(`[Setup] Element batch create failed (HTTP ${status}):`, data);
+        toCreate.forEach(d => results.elements.push({ name: d.name, status: 'error', error: JSON.stringify(data) }));
       }
     } catch (e) {
       toCreate.forEach(d => results.elements.push({ name: d.name, status: 'error', error: e.message }));
@@ -153,8 +259,8 @@ app.post('/api/setup/create', async (_, res) => {
   // ── Purposes ──
   let existingPurposes = [];
   try {
-    const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-purposes?limit=50`, { headers: fgcHeaders() });
-    if (r.ok) { const d = await r.json(); existingPurposes = d.data || d || []; }
+    const { ok, data } = await fgcFetch('GET', '/api/v1/consent-purposes?limit=50');
+    if (ok) existingPurposes = data.data || data || [];
   } catch (e) { /* proceed */ }
 
   const existingPurposeByName = {};
@@ -167,18 +273,14 @@ app.post('/api/setup/create', async (_, res) => {
     }
     try {
       console.log(`[Setup] Creating purpose: ${def.name}`);
-      const r = await fetch(`${OPENFGC_BASE}/api/v1/consent-purposes`, {
-        method: 'POST',
-        headers: fgcHeaders(),
-        body: JSON.stringify({ name: def.name, description: def.description, elements: def.elements })
+      const { ok, status, data } = await fgcFetch('POST', '/api/v1/consent-purposes', {
+        name: def.name, description: def.description, elements: def.elements
       });
-      const text = await r.text();
-      if (r.ok) {
-        let p; try { p = JSON.parse(text); } catch (e) { p = {}; }
-        results.purposes.push({ name: def.name, status: 'created', id: p.id });
+      if (ok) {
+        results.purposes.push({ name: def.name, status: 'created', id: data.id });
       } else {
-        console.error(`[Setup] Purpose create failed (HTTP ${r.status}):`, text);
-        results.purposes.push({ name: def.name, status: 'error', error: text });
+        console.error(`[Setup] Purpose create failed (HTTP ${status}):`, data);
+        results.purposes.push({ name: def.name, status: 'error', error: JSON.stringify(data) });
       }
     } catch (e) {
       results.purposes.push({ name: def.name, status: 'error', error: e.message });
@@ -194,7 +296,7 @@ app.post('/api/consents', async (req, res) => {
     const { userId, purposes, userData } = req.body;
     const payload = {
       type: 'insurance_quotation',
-      validityTime: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60),
+      validityTime: Date.now() + (90 * 24 * 60 * 60 * 1000), // 3 months in ms
       recurringIndicator: false,
       dataAccessValidityDuration: 0,
       frequency: 0,
@@ -210,17 +312,13 @@ app.post('/api/consents', async (req, res) => {
       ]
     };
     console.log(`[Consent] Creating for userId=${userId}, purposes=${purposes.map(p => p.name).join(', ')}`);
-    const r = await fetch(`${OPENFGC_BASE}/api/v1/consents`, {
-      method: 'POST', headers: fgcHeaders(), body: JSON.stringify(payload)
-    });
-    const text = await r.text();
-    let data; try { data = JSON.parse(text); } catch (e) { data = { raw: text }; }
-    if (r.ok) {
+    const { ok, status, data } = await fgcFetch('POST', '/api/v1/consents', payload);
+    if (ok) {
       console.log(`[Consent] Created — id=${data.id}`);
     } else {
-      console.error(`[Consent] Create failed (HTTP ${r.status}):`, text);
+      console.error(`[Consent] Create failed (HTTP ${status}):`, data);
     }
-    res.status(r.status).json(data);
+    res.status(status).json(data);
   } catch (e) {
     console.error('[Consent] Error:', e.message);
     res.status(500).json({ error: e.message });
@@ -229,10 +327,11 @@ app.post('/api/consents', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`\nLife Insurance Consent Demo`);
-  console.log(`  Home       → http://localhost:${PORT}/`);
+  console.log(`  Entry      → http://localhost:${PORT}/`);
+  console.log(`  Home       → http://localhost:${PORT}/home.html`);
   console.log(`  Quotation  → http://localhost:${PORT}/quotation.html`);
+  console.log(`  Account    → http://localhost:${PORT}/account.html`);
   console.log(`  Setup      → http://localhost:${PORT}/setup/`);
-  console.log(`  Thank you  → http://localhost:${PORT}/thank-you.html`);
   console.log(`\n  Org ID     : ${ORG_ID}`);
   console.log(`  OpenFGC    : ${OPENFGC_BASE}\n`);
 });

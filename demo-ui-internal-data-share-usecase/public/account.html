@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Account — Life Insurance Provider</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #1e3a5f;
+    --primary-dark: #132540;
+    --primary-light: #e8f0fc;
+    --accent: #c8963a;
+    --accent-light: #fdf3e3;
+    --success: #2e7d32;
+    --success-light: #e8f5e9;
+    --danger: #c62828;
+    --danger-light: #fbe9e7;
+    --warning: #b45309;
+    --warning-light: #fef9c3;
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --text: #1e293b;
+    --muted: #64748b;
+    --border: #e2e8f0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--primary);
+    padding: 0 48px; height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    position: sticky; top: 0; z-index: 200;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; }
+  .brand-logo { width: 36px; height: 36px; border-radius: 8px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+  .brand-name { font-size: 16px; font-weight: 700; color: #fff; }
+  .brand-tagline { font-size: 11px; color: rgba(255,255,255,.6); margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .user-pill {
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,.1); border-radius: 10px; padding: 8px 14px;
+  }
+  .user-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+  }
+  .user-email { font-size: 13px; color: rgba(255,255,255,.9); font-weight: 500; }
+  .btn-logout {
+    font-size: 12px; color: rgba(255,255,255,.7); text-decoration: none;
+    padding: 7px 14px; border: 1px solid rgba(255,255,255,.2);
+    border-radius: 7px; cursor: pointer; background: transparent;
+    transition: all .2s;
+  }
+  .btn-logout:hover { color: #fff; border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.08); }
+
+  /* ── Main layout ── */
+  main { flex: 1; max-width: 960px; width: 100%; margin: 0 auto; padding: 36px 24px 60px; }
+
+  /* ── Section cards ── */
+  .section-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    margin-bottom: 28px;
+  }
+  .section-card-header {
+    padding: 18px 24px; background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .section-card-header h2 { font-size: 15px; font-weight: 700; color: var(--text); }
+  .section-card-header p { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .section-icon { font-size: 20px; margin-right: 10px; }
+  .section-card-body { padding: 24px; }
+
+  /* ── Quotation status ── */
+  .status-banner {
+    display: flex; align-items: flex-start; gap: 16px;
+    background: linear-gradient(135deg, #e8f5e9, #f1f8e9);
+    border: 1px solid #a5d6a7; border-radius: 12px; padding: 20px 24px;
+  }
+  .status-banner-icon { font-size: 32px; flex-shrink: 0; }
+  .status-banner h3 { font-size: 16px; font-weight: 700; color: var(--success); margin-bottom: 4px; }
+  .status-banner p { font-size: 13px; color: #3d7540; line-height: 1.6; }
+  .status-steps { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .status-step {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 12px; color: var(--muted);
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 12px;
+  }
+  .status-step.active { border-color: var(--success); color: var(--success); font-weight: 600; }
+  .step-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  /* ── Consents table ── */
+  .consents-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .consents-count { font-size: 13px; color: var(--muted); }
+  .btn-refresh {
+    font-size: 12px; color: var(--primary); font-weight: 600;
+    background: var(--primary-light); border: none; border-radius: 7px;
+    padding: 7px 14px; cursor: pointer; transition: background .2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-refresh:hover { background: #d0e4f8; }
+
+  .consent-list { display: flex; flex-direction: column; gap: 12px; }
+  .consent-card {
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px;
+    display: flex; align-items: flex-start; gap: 16px;
+    transition: border-color .2s;
+  }
+  .consent-card:hover { border-color: #b8d4f0; }
+  .consent-card-left { flex: 1; min-width: 0; }
+  .consent-card-row1 { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .consent-id {
+    font-family: 'Courier New', monospace; font-size: 12px;
+    color: var(--muted); background: #f1f5f9;
+    padding: 2px 8px; border-radius: 6px;
+  }
+  .consent-type { font-size: 13px; font-weight: 600; color: var(--text); }
+  .consent-status-badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .4px; padding: 2px 8px; border-radius: 8px;
+  }
+  .badge-active   { background: var(--success-light); color: var(--success); }
+  .badge-created  { background: var(--primary-light);  color: var(--primary); }
+  .badge-revoked  { background: #f1f5f9; color: #94a3b8; }
+  .badge-expired  { background: var(--warning-light); color: var(--warning); }
+  .badge-rejected { background: var(--danger-light); color: var(--danger); }
+
+  .consent-purposes { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .purpose-tag {
+    display: inline-block; font-size: 11px;
+    background: var(--primary-light); color: var(--primary);
+    padding: 1px 7px; border-radius: 5px; margin-right: 4px; margin-bottom: 3px; font-weight: 600;
+  }
+  .consent-expiry { font-size: 11px; color: var(--muted); }
+
+  .consent-card-actions { display: flex; gap: 8px; flex-shrink: 0; align-items: flex-start; padding-top: 2px; }
+  .btn-view {
+    font-size: 12px; font-weight: 600; color: var(--primary);
+    background: var(--primary-light); border: none; border-radius: 7px;
+    padding: 6px 14px; cursor: pointer; transition: background .2s; white-space: nowrap;
+  }
+  .btn-view:hover { background: #d0e4f8; }
+  .btn-revoke {
+    font-size: 12px; font-weight: 600; color: var(--danger);
+    background: var(--danger-light); border: none; border-radius: 7px;
+    padding: 6px 14px; cursor: pointer; transition: background .2s; white-space: nowrap;
+  }
+  .btn-revoke:hover { background: #f5c6c6; }
+  .btn-revoke:disabled { opacity: .45; cursor: not-allowed; }
+
+  .empty-state {
+    text-align: center; padding: 48px 24px; color: var(--muted);
+  }
+  .empty-state-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-state h3 { font-size: 15px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+  .empty-state p { font-size: 13px; line-height: 1.6; }
+
+  .load-error {
+    background: var(--danger-light); border: 1px solid #ef9a9a;
+    border-radius: 10px; padding: 14px 18px;
+    font-size: 13px; color: var(--danger);
+  }
+
+  .loading-row { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; padding: 20px 0; }
+  .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--primary); animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Account section ── */
+  .danger-zone {
+    border: 1px solid #fca5a5; border-radius: 12px; padding: 20px 24px;
+    background: #fff5f5; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  }
+  .danger-zone-text h3 { font-size: 14px; font-weight: 700; color: var(--danger); margin-bottom: 4px; }
+  .danger-zone-text p { font-size: 12px; color: #b91c1c; line-height: 1.55; }
+  .btn-delete {
+    padding: 10px 22px; background: var(--danger); color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; white-space: nowrap; transition: background .2s, opacity .2s;
+    flex-shrink: 0;
+  }
+  .btn-delete:hover { background: #a21c1c; }
+  .btn-delete:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── Confirm modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.45); z-index: 1000;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #fff; border-radius: 16px; padding: 36px;
+    width: 100%; max-width: 440px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.2);
+  }
+  .modal-icon { font-size: 36px; margin-bottom: 16px; }
+  .modal-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .modal-body { font-size: 14px; color: var(--muted); line-height: 1.65; margin-bottom: 24px; }
+  .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+  .btn-cancel {
+    padding: 10px 20px; background: #f1f5f9; color: var(--text);
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .2s;
+  }
+  .btn-cancel:hover { background: var(--border); }
+  .btn-confirm-revoke {
+    padding: 10px 20px; background: var(--danger); color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: background .2s;
+  }
+  .btn-confirm-revoke:hover { background: #a21c1c; }
+  .btn-confirm-delete {
+    padding: 10px 20px; background: var(--danger); color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: background .2s;
+  }
+  .btn-confirm-delete:hover { background: #a21c1c; }
+
+  /* ── Detail modal ── */
+  .detail-modal {
+    background: #fff; border-radius: 16px; padding: 36px;
+    width: 100%; max-width: 600px; max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 24px 64px rgba(0,0,0,.2);
+    position: relative;
+  }
+  .detail-modal-close {
+    position: absolute; top: 16px; right: 20px;
+    background: none; border: none; font-size: 18px; color: var(--muted); cursor: pointer;
+  }
+  .detail-modal-close:hover { color: var(--text); }
+  .detail-section { margin-bottom: 20px; }
+  .detail-section-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .7px; color: var(--muted); margin-bottom: 10px;
+    padding-bottom: 6px; border-bottom: 1px solid var(--border);
+  }
+  .detail-row { display: flex; gap: 12px; margin-bottom: 8px; font-size: 13px; }
+  .detail-key { font-weight: 600; color: var(--text); min-width: 130px; flex-shrink: 0; }
+  .detail-val { color: var(--muted); font-family: 'Courier New', monospace; font-size: 12px; word-break: break-all; }
+  .detail-val.normal { font-family: inherit; font-size: 13px; }
+  .purpose-detail-block {
+    background: var(--primary-light); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  .purpose-detail-name { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 8px; }
+  .element-row { font-size: 12px; color: #2a4a7a; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .element-name { font-family: 'Courier New', monospace; font-weight: 600; }
+  .element-approved { color: var(--success); font-weight: 600; }
+  .element-denied { color: var(--danger); font-weight: 600; }
+
+  /* ── API Viewer Drawer ── */
+  .api-toggle {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--primary-dark); color: #fff;
+    border: none; border-radius: 12px; padding: 12px 18px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,.25); z-index: 500;
+    display: flex; align-items: center; gap: 8px; transition: background .2s;
+  }
+  .api-toggle:hover { background: var(--primary); }
+  .api-badge {
+    background: var(--accent); color: #fff; font-size: 10px; font-weight: 800;
+    padding: 2px 7px; border-radius: 10px; min-width: 18px; text-align: center;
+  }
+
+  .api-drawer {
+    position: fixed; right: 0; top: 0; bottom: 0;
+    width: 480px; background: #0f1923; z-index: 600;
+    display: flex; flex-direction: column;
+    box-shadow: -4px 0 24px rgba(0,0,0,.4);
+    transform: translateX(100%);
+    transition: transform .3s ease;
+  }
+  .api-drawer.open { transform: translateX(0); }
+  .api-drawer-header {
+    padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .api-drawer-title { font-size: 14px; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px; }
+  .api-drawer-close {
+    background: none; border: none; color: #64748b; font-size: 18px;
+    cursor: pointer; transition: color .2s;
+  }
+  .api-drawer-close:hover { color: #e2e8f0; }
+  .api-drawer-clear {
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+    color: #94a3b8; font-size: 11px; font-weight: 600; border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; transition: all .2s;
+  }
+  .api-drawer-clear:hover { background: rgba(255,255,255,.14); color: #e2e8f0; }
+  .api-drawer-body { flex: 1; overflow-y: auto; padding: 12px; }
+  .api-drawer-empty { color: #4a5568; font-size: 13px; text-align: center; padding: 40px 20px; }
+
+  .api-entry { margin-bottom: 8px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
+  .api-entry-head {
+    padding: 10px 14px; background: rgba(255,255,255,.04);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .api-method {
+    font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 5px;
+    font-family: monospace; flex-shrink: 0;
+  }
+  .m-get    { background: #1a4731; color: #4ade80; }
+  .m-post   { background: #1a3a5c; color: #60a5fa; }
+  .m-put    { background: #3d2b0a; color: #fbbf24; }
+  .m-delete { background: #3b0f0f; color: #f87171; }
+  .api-url { font-size: 11px; color: #94a3b8; font-family: monospace; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .api-status {
+    font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 5px; flex-shrink: 0;
+  }
+  .s-ok  { background: #1a4731; color: #4ade80; }
+  .s-err { background: #3b0f0f; color: #f87171; }
+
+  .api-entry-body { padding: 12px 14px; background: #0a1018; border-top: 1px solid rgba(255,255,255,.04); }
+  .api-block-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #4a5568; margin-bottom: 6px; margin-top: 12px; }
+  .api-block-label:first-child { margin-top: 0; }
+  .api-code {
+    background: #060d14; border-radius: 6px; padding: 10px 12px;
+    font-family: 'Courier New', monospace; font-size: 11px; color: #a0c4ff;
+    white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;
+    border: 1px solid rgba(255,255,255,.04);
+  }
+
+  /* ── Search filter highlight in API drawer ── */
+  .api-search-filters {
+    background: #0d1f1a; border-radius: 6px; padding: 8px 12px;
+    border: 1px solid rgba(74,222,128,.2); margin-bottom: 4px;
+  }
+  .filter-row {
+    display: flex; gap: 10px; align-items: baseline;
+    font-size: 11px; font-family: 'Courier New', monospace; padding: 2px 0;
+  }
+  .filter-key  { color: #4ade80; font-weight: 700; min-width: 110px; flex-shrink: 0; }
+  .filter-val  { color: #e2e8f0; word-break: break-all; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1e3a5f; color: #fff; font-size: 13px; font-weight: 600;
+    padding: 12px 24px; border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 2000;
+    opacity: 0; transition: opacity .3s, transform .3s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--success); }
+  .toast.error   { background: var(--danger); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-logo">🛡️</div>
+    <div>
+      <div class="brand-name" id="company-name">Life Insurance Provider</div>
+      <div class="brand-tagline">My Account</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="user-pill">
+      <div class="user-avatar" id="user-avatar">U</div>
+      <span class="user-email" id="user-email">user@example.com</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">Log out</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- Quotation status (shown only when user has at least one consent) -->
+  <div class="section-card" id="quotation-card" style="display:none">
+    <div class="section-card-header">
+      <div><span class="section-icon">📋</span><strong>Quotation Status</strong></div>
+    </div>
+    <div class="section-card-body">
+      <div class="status-banner">
+        <div class="status-banner-icon">⏳</div>
+        <div>
+          <h3>Your quotation is being prepared</h3>
+          <p>Our team is reviewing your details and building a personalised insurance plan. You will receive your quote by email within 1 business day.</p>
+          <div class="status-steps">
+            <div class="status-step active"><span class="step-dot"></span> Application received</div>
+            <div class="status-step"><span class="step-dot"></span> Quote in preparation</div>
+            <div class="status-step"><span class="step-dot"></span> Quote sent to you</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Consents -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div>
+        <h2><span class="section-icon">🔐</span>My Consents</h2>
+        <p>View and manage the consents you have granted to us</p>
+      </div>
+      <button class="btn-refresh" onclick="loadConsents(true)">↻ Refresh</button>
+    </div>
+    <div class="section-card-body">
+      <div id="consents-container">
+        <div class="loading-row"><div class="spinner"></div> Loading your consents…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- My Account -->
+  <div class="section-card">
+    <div class="section-card-header">
+      <div><h2><span class="section-icon">👤</span>My Account</h2></div>
+    </div>
+    <div class="section-card-body">
+      <div class="danger-zone">
+        <div class="danger-zone-text">
+          <h3>Delete My Account and Personal Data</h3>
+          <p>This will revoke all your active consents and permanently remove your personal data from our systems. This action cannot be undone.</p>
+        </div>
+        <button class="btn-delete" id="btn-delete-account" onclick="confirmDeleteAccount()">Delete Account</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── Revoke Confirm Modal ── -->
+<div class="modal-overlay" id="modal-revoke">
+  <div class="modal">
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title">Revoke this consent?</div>
+    <div class="modal-body" id="revoke-modal-body">
+      This will revoke your consent. The company will no longer be authorised to use your data for this purpose.
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('revoke')">Cancel</button>
+      <button class="btn-confirm-revoke" id="btn-confirm-revoke" onclick="doRevoke()">Yes, Revoke</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Account Confirm Modal ── -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <div class="modal-icon">🗑️</div>
+    <div class="modal-title">Delete your account?</div>
+    <div class="modal-body">
+      This will revoke all your active consents and erase your personal data from our systems. You will be logged out immediately. <strong>This cannot be undone.</strong>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('delete')">Cancel</button>
+      <button class="btn-confirm-delete" id="btn-confirm-delete" onclick="doDeleteAccount()">Delete Everything</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Detail Modal ── -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="detail-modal">
+    <button class="detail-modal-close" onclick="closeModal('detail')">✕</button>
+    <div id="detail-modal-content"></div>
+  </div>
+</div>
+
+<!-- ── API Viewer ── -->
+<button class="api-toggle" id="api-toggle-btn" onclick="toggleApiDrawer()">
+  📡 REST API Calls <span class="api-badge" id="api-count">0</span>
+</button>
+
+<div class="api-drawer" id="api-drawer">
+  <div class="api-drawer-header">
+    <div class="api-drawer-title">REST API Calls</div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="api-drawer-clear" onclick="doClearApiLogs()">Clear</button>
+      <button class="api-drawer-close" onclick="toggleApiDrawer()">✕</button>
+    </div>
+  </div>
+  <div class="api-drawer-body" id="api-drawer-body">
+    <div class="api-drawer-empty">No API calls yet. Load or manage your consents to see activity.</div>
+  </div>
+</div>
+
+<!-- ── Toast ── -->
+<div class="toast" id="toast"></div>
+
+<script>
+  var userEmail = '';
+  var userName  = '';
+  var pendingRevokeId = '';
+  var consentsData = [];
+
+  async function init() {
+    userEmail = sessionStorage.getItem('user_email') || '';
+    userName  = sessionStorage.getItem('user_name')  || '';
+    if (!userEmail) { window.location.href = '/home.html'; return; }
+    document.getElementById('user-email').textContent = userEmail;
+    document.getElementById('user-avatar').textContent = (userName || userEmail)[0].toUpperCase();
+    loadConfig();
+
+    // Event delegation for View / Revoke buttons (avoids JSON-in-onclick quoting bugs)
+    document.getElementById('consents-container').addEventListener('click', function(e) {
+      var viewBtn   = e.target.closest('.btn-view');
+      var revokeBtn = e.target.closest('.btn-revoke');
+      if (viewBtn)   viewConsent(viewBtn.dataset.id);
+      if (revokeBtn && !revokeBtn.disabled) confirmRevoke(revokeBtn.dataset.id, revokeBtn.dataset.type);
+    });
+
+    await clearApiLogs();
+    loadConsents(false);
+  }
+
+  function loadConfig() {
+    fetch('/api/config').then(r => r.json()).then(function(cfg) {
+      var name = cfg.companyName || 'Life Insurance Provider';
+      document.getElementById('company-name').textContent = name;
+      document.title = 'My Account — ' + name;
+    }).catch(function() {});
+  }
+
+  function doLogout() {
+    sessionStorage.removeItem('user_email');
+    sessionStorage.removeItem('user_name');
+    window.location.href = '/home.html';
+  }
+
+  // ── Consent Loading ──────────────────────────────────────────────────────────
+
+  async function loadConsents(clearFirst) {
+    if (clearFirst) await clearApiLogs();
+    var container = document.getElementById('consents-container');
+    container.innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading your consents…</div>';
+    try {
+      var r = await fetch('/api/user-consents?userId=' + encodeURIComponent(userEmail) + '&purposeName=' + encodeURIComponent('create_custom_insurance_policy'));
+      var data = await r.json();
+      await refreshApiLogs();
+      if (!r.ok) { renderError(data.error || 'Failed to load consents.'); return; }
+      consentsData = data.data || data || [];
+      renderConsents(consentsData);
+    } catch (e) {
+      renderError('Could not connect to server: ' + e.message);
+    }
+  }
+
+  function renderError(msg) {
+    document.getElementById('consents-container').innerHTML =
+      '<div class="load-error">⚠ ' + escHtml(msg) + '</div>';
+  }
+
+  function renderConsents(list) {
+    var hasActiveQuotation = (list || []).some(function(c) {
+      var s = (c.currentStatus || c.status || '').toUpperCase();
+      if (s !== 'ACTIVE') return false;
+      return (c.purposes || []).some(function(p) { return p.name === 'create_custom_insurance_policy'; });
+    });
+    document.getElementById('quotation-card').style.display = hasActiveQuotation ? '' : 'none';
+    var container = document.getElementById('consents-container');
+    if (!list || list.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><h3>No consents found</h3><p>You have not submitted any consent records yet. Get a quotation to create your first consent.</p></div>';
+      return;
+    }
+    var html = '<div class="consents-toolbar"><span class="consents-count">' + list.length + ' consent record' + (list.length !== 1 ? 's' : '') + ' found</span></div>';
+    html += '<div class="consent-list">';
+    list.forEach(function(c) {
+      var status = (c.currentStatus || c.status || 'UNKNOWN').toUpperCase();
+      var badgeClass = { ACTIVE: 'badge-active', CREATED: 'badge-created', REVOKED: 'badge-revoked', EXPIRED: 'badge-expired', REJECTED: 'badge-rejected' }[status] || 'badge-created';
+      var purposes = (c.purposes || []).map(function(p) { return '<span class="purpose-tag">' + escHtml(p.name) + '</span>'; }).join('');
+      var expiry = c.validityTime ? 'Expires ' + formatTs(c.validityTime) : '';
+      var canRevoke = (status === 'ACTIVE' || status === 'CREATED');
+      var shortId = c.id ? c.id.substring(0, 16) + '…' : 'N/A';
+      html += '<div class="consent-card">';
+      html += '<div class="consent-card-left">';
+      html += '<div class="consent-card-row1">';
+      html += '<span class="consent-id">' + escHtml(shortId) + '</span>';
+      html += '<span class="consent-type">' + escHtml(c.type || 'insurance_quotation') + '</span>';
+      html += '<span class="consent-status-badge ' + badgeClass + '">' + status + '</span>';
+      html += '</div>';
+      html += '<div class="consent-purposes">' + (purposes || '<span style="color:var(--muted);font-style:italic">No purposes</span>') + '</div>';
+      if (expiry) html += '<div class="consent-expiry">' + escHtml(expiry) + '</div>';
+      html += '</div>';
+      html += '<div class="consent-card-actions">';
+      html += '<button class="btn-view" data-id="' + escHtml(c.id || '') + '">View</button>';
+      html += '<button class="btn-revoke"' + (canRevoke ? '' : ' disabled') + ' data-id="' + escHtml(c.id || '') + '" data-type="' + escHtml(c.type || '') + '">Revoke</button>';
+      html += '</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  // ── View Consent Detail ───────────────────────────────────────────────────────
+
+  async function viewConsent(id) {
+    await clearApiLogs();
+    document.getElementById('detail-modal-content').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading…</div>';
+    openModal('detail');
+    try {
+      var r = await fetch('/api/consents/' + encodeURIComponent(id));
+      var c = await r.json();
+      await refreshApiLogs();
+      if (!r.ok) {
+        document.getElementById('detail-modal-content').innerHTML = '<div style="color:var(--danger)">Failed to load consent details.</div>';
+        return;
+      }
+      var status = (c.currentStatus || c.status || 'UNKNOWN').toUpperCase();
+      var html = '<div class="modal-title" style="margin-bottom:20px">Consent Details</div>';
+      html += '<div class="detail-section">';
+      html += '<div class="detail-section-title">Summary</div>';
+      html += detailRow('Consent ID', c.id || 'N/A', true);
+      html += detailRow('Type', c.type || 'N/A', false);
+      html += detailRow('Status', status, false);
+      html += detailRow('Validity', c.validityTime ? formatTs(c.validityTime) : 'N/A', false);
+      html += detailRow('Created', c.createdTime ? formatTs(c.createdTime) : 'N/A', false);
+      html += '</div>';
+      if (c.purposes && c.purposes.length > 0) {
+        html += '<div class="detail-section"><div class="detail-section-title">Purposes &amp; Elements</div>';
+        c.purposes.forEach(function(p) {
+          html += '<div class="purpose-detail-block">';
+          html += '<div class="purpose-detail-name">' + escHtml(p.name) + '</div>';
+          (p.elements || []).forEach(function(el) {
+            var approved = el.isUserApproved !== false;
+            html += '<div class="element-row"><span class="element-name">' + escHtml(el.name) + '</span>';
+            html += '<span class="' + (approved ? 'element-approved' : 'element-denied') + '">' + (approved ? '✓ Approved' : '✗ Not approved') + '</span></div>';
+          });
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+      document.getElementById('detail-modal-content').innerHTML = html;
+    } catch (e) {
+      document.getElementById('detail-modal-content').innerHTML = '<div style="color:var(--danger)">Error: ' + escHtml(e.message) + '</div>';
+    }
+  }
+
+  function detailRow(key, val, mono) {
+    return '<div class="detail-row"><span class="detail-key">' + escHtml(key) + '</span><span class="detail-val' + (mono ? '' : ' normal') + '">' + escHtml(String(val)) + '</span></div>';
+  }
+
+  // ── Revoke ────────────────────────────────────────────────────────────────────
+
+  function confirmRevoke(id, type) {
+    pendingRevokeId = id;
+    document.getElementById('revoke-modal-body').innerHTML =
+      'This will revoke your <strong>' + escHtml(type || id) + '</strong> consent. The company will no longer be authorised to use your data for this purpose.' +
+      '<br><br><span style="color:var(--danger);font-weight:600;">⚠ Note: with this action, your quotation request will also be cancelled.</span>';
+    openModal('revoke');
+  }
+
+  async function doRevoke() {
+    var btn = document.getElementById('btn-confirm-revoke');
+    btn.disabled = true; btn.textContent = 'Revoking…';
+    await clearApiLogs();
+    try {
+      var r = await fetch('/api/consents/' + encodeURIComponent(pendingRevokeId) + '/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionBy: userEmail, revocationReason: 'User requested revocation' })
+      });
+      await refreshApiLogs();
+      closeModal('revoke');
+      if (r.ok) {
+        showToast('Consent revoked successfully.', 'success');
+        await loadConsents(false);
+      } else {
+        var d = await r.json();
+        showToast('Revoke failed: ' + (d.error || r.status), 'error');
+      }
+    } catch (e) {
+      showToast('Error: ' + e.message, 'error');
+    } finally {
+      btn.disabled = false; btn.textContent = 'Yes, Revoke';
+    }
+  }
+
+  // ── Delete Account ────────────────────────────────────────────────────────────
+
+  function confirmDeleteAccount() { openModal('delete'); }
+
+  async function doDeleteAccount() {
+    var btn = document.getElementById('btn-confirm-delete');
+    btn.disabled = true; btn.textContent = 'Deleting…';
+    await clearApiLogs();
+    try {
+      // Step 1: revoke all active/created consents
+      var toRevoke = consentsData.filter(function(c) {
+        var s = (c.currentStatus || c.status || '').toUpperCase();
+        return s === 'ACTIVE' || s === 'CREATED';
+      });
+      for (var i = 0; i < toRevoke.length; i++) {
+        await fetch('/api/consents/' + encodeURIComponent(toRevoke[i].id) + '/revoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actionBy: userEmail, revocationReason: 'Account deletion requested by user' })
+        });
+      }
+      // Step 2: anonymize userId on ALL consents via PUT
+      for (var j = 0; j < consentsData.length; j++) {
+        await fetch('/api/consents/' + encodeURIComponent(consentsData[j].id) + '/anonymize', {
+          method: 'POST'
+        });
+      }
+      await refreshApiLogs();
+      closeModal('delete');
+      sessionStorage.removeItem('user_email');
+      sessionStorage.removeItem('user_name');
+      sessionStorage.setItem('account_deleted', '1');
+      window.location.href = '/home.html';
+    } catch (e) {
+      showToast('Error during deletion: ' + e.message, 'error');
+      btn.disabled = false; btn.textContent = 'Delete Everything';
+    }
+  }
+
+  // ── Modals ────────────────────────────────────────────────────────────────────
+
+  function openModal(id) { document.getElementById('modal-' + id).classList.add('open'); }
+  function closeModal(id) { document.getElementById('modal-' + id).classList.remove('open'); }
+  document.querySelectorAll('.modal-overlay').forEach(function(el) {
+    el.addEventListener('click', function(e) { if (e.target === el) el.classList.remove('open'); });
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') ['revoke','delete','detail'].forEach(closeModal);
+  });
+
+  // ── API Drawer ────────────────────────────────────────────────────────────────
+
+  var drawerOpen = false;
+  function toggleApiDrawer() {
+    drawerOpen = !drawerOpen;
+    document.getElementById('api-drawer').classList.toggle('open', drawerOpen);
+    if (drawerOpen) refreshApiLogs();
+  }
+
+  async function refreshApiLogs() {
+    try {
+      var r = await fetch('/api/logs');
+      var logs = await r.json();
+      renderApiLogs(logs);
+      document.getElementById('api-count').textContent = logs.length;
+    } catch (e) { /* silent */ }
+  }
+
+  async function clearApiLogs() {
+    try { await fetch('/api/logs', { method: 'DELETE' }); } catch (e) {}
+  }
+
+  async function doClearApiLogs() {
+    await clearApiLogs();
+    renderApiLogs([]);
+    document.getElementById('api-count').textContent = '0';
+  }
+
+  function renderApiLogs(logs) {
+    var body = document.getElementById('api-drawer-body');
+    if (!logs || logs.length === 0) {
+      body.innerHTML = '<div class="api-drawer-empty">No API calls for this action yet.</div>';
+      return;
+    }
+    body.innerHTML = logs.map(function(log) {
+      var m = (log.method || 'GET').toUpperCase();
+      var mClass = { GET: 'm-get', POST: 'm-post', PUT: 'm-put', DELETE: 'm-delete' }[m] || 'm-get';
+      var sOk = log.status >= 200 && log.status < 300;
+      var shortUrl = (log.url || '').replace(/https?:\/\/[^/]+/, '');
+
+      // For GET /consents calls, show highlighted search filters (only if params exist)
+      var filterHtml = '';
+      if (m === 'GET' && (log.url || '').indexOf('/consents') >= 0) {
+        var params = parseUrlParams(log.url || '');
+        var filterRows = '';
+        if (params.userIds)     filterRows += '<div class="filter-row"><span class="filter-key">userId</span><span class="filter-val">' + escHtml(params.userIds) + '</span></div>';
+        if (params.purposeName) filterRows += '<div class="filter-row"><span class="filter-key">purposeName</span><span class="filter-val">' + escHtml(params.purposeName) + '</span></div>';
+        if (params.limit)       filterRows += '<div class="filter-row"><span class="filter-key">limit</span><span class="filter-val">' + escHtml(params.limit) + '</span></div>';
+        if (filterRows) filterHtml = '<div class="api-block-label">Search Filters</div><div class="api-search-filters">' + filterRows + '</div>';
+      }
+
+      var reqBodyHtml = m !== 'GET'
+        ? (log.reqBody
+            ? '<div class="api-block-label">Request Body</div><div class="api-code">' + escHtml(JSON.stringify(log.reqBody, null, 2)) + '</div>'
+            : '<div class="api-block-label">Request Body</div><div class="api-code" style="color:#4a5568;font-style:italic">No body</div>')
+        : '';
+
+      return '<div class="api-entry">' +
+        '<div class="api-entry-head">' +
+        '<span class="api-method ' + mClass + '">' + m + '</span>' +
+        '<span class="api-url" title="' + escHtml(log.url || '') + '">' + escHtml(shortUrl) + '</span>' +
+        '<span class="api-status ' + (sOk ? 's-ok' : 's-err') + '">' + log.status + '</span>' +
+        '</div>' +
+        '<div class="api-entry-body">' +
+        filterHtml +
+        reqBodyHtml +
+        '<div class="api-block-label">Response (' + log.status + ')</div><div class="api-code">' + escHtml(JSON.stringify(log.resBody, null, 2)) + '</div>' +
+        '</div>' +
+        '</div>';
+    }).join('');
+  }
+
+  function parseUrlParams(url) {
+    var params = {};
+    var idx = url.indexOf('?');
+    if (idx < 0) return params;
+    url.slice(idx + 1).split('&').forEach(function(part) {
+      var eq = part.indexOf('=');
+      if (eq >= 0) params[decodeURIComponent(part.slice(0, eq))] = decodeURIComponent(part.slice(eq + 1));
+    });
+    return params;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────────
+
+  function formatTs(ts) {
+    if (!ts) return '';
+    // Values > 1e12 are already in ms; smaller values are in seconds
+    var ms = ts > 1e12 ? ts : ts * 1000;
+    return new Date(ms).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  var toastTimer;
+  function showToast(msg, type) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.classList.remove('show'); }, 3000);
+  }
+
+  init();
+</script>
+</body>
+</html>
