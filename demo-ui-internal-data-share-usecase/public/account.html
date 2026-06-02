@@ -28,8 +28,9 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    height: 100vh;
     display: flex; flex-direction: column;
+    overflow: hidden;
   }
 
   /* ── Header ── */
@@ -64,7 +65,7 @@
   .btn-logout:hover { color: #fff; border-color: rgba(255,255,255,.5); background: rgba(255,255,255,.08); }
 
   /* ── Main layout ── */
-  main { flex: 1; max-width: 960px; width: 100%; margin: 0 auto; padding: 36px 24px 60px; }
+  main { max-width: 960px; width: 100%; margin: 0 auto; padding: 36px 24px 60px; }
 
   /* ── Section cards ── */
   .section-card {
@@ -119,9 +120,11 @@
   .consent-list { display: flex; flex-direction: column; gap: 12px; }
   .consent-card {
     border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px;
-    display: flex; align-items: flex-start; gap: 16px;
+    display: flex; flex-direction: column;
     transition: border-color .2s;
   }
+  .consent-card-top { display: flex; align-items: flex-start; gap: 16px; }
+  .consent-detail-panel { border-top: 1px solid var(--border); margin-top: 14px; padding-top: 14px; }
   .consent-card:hover { border-color: #b8d4f0; }
   .consent-card-left { flex: 1; min-width: 0; }
   .consent-card-row1 { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
@@ -232,19 +235,7 @@
   }
   .btn-confirm-delete:hover { background: #a21c1c; }
 
-  /* ── Detail modal ── */
-  .detail-modal {
-    background: #fff; border-radius: 16px; padding: 36px;
-    width: 100%; max-width: 600px; max-height: 80vh;
-    overflow-y: auto;
-    box-shadow: 0 24px 64px rgba(0,0,0,.2);
-    position: relative;
-  }
-  .detail-modal-close {
-    position: absolute; top: 16px; right: 20px;
-    background: none; border: none; font-size: 18px; color: var(--muted); cursor: pointer;
-  }
-  .detail-modal-close:hover { color: var(--text); }
+  /* ── Detail panel ── */
   .detail-section { margin-bottom: 20px; }
   .detail-section-title {
     font-size: 11px; font-weight: 700; text-transform: uppercase;
@@ -264,48 +255,23 @@
   .element-approved { color: var(--success); font-weight: 600; }
   .element-denied { color: var(--danger); font-weight: 600; }
 
-  /* ── API Viewer Drawer ── */
-  .api-toggle {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--primary-dark); color: #fff;
-    border: none; border-radius: 12px; padding: 12px 18px;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,.25); z-index: 500;
-    display: flex; align-items: center; gap: 8px; transition: background .2s;
+  /* ── Split Layout ── */
+  .split-container { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+  .main-pane { width: 62%; min-width: 320px; overflow-y: auto; flex-shrink: 0; }
+  .split-handle { width: 5px; background: var(--border); cursor: col-resize; flex-shrink: 0; transition: background .15s; }
+  .split-handle:hover, .split-handle.dragging { background: var(--accent); }
+  .api-pane { flex: 1; min-width: 260px; display: flex; flex-direction: column; background: #0f1923; overflow: hidden; }
+  .api-pane-header {
+    padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0; background: #080f18;
   }
-  .api-toggle:hover { background: var(--primary); }
-  .api-badge {
-    background: var(--accent); color: #fff; font-size: 10px; font-weight: 800;
-    padding: 2px 7px; border-radius: 10px; min-width: 18px; text-align: center;
-  }
-
-  .api-drawer {
-    position: fixed; right: 0; top: 0; bottom: 0;
-    width: 480px; background: #0f1923; z-index: 600;
-    display: flex; flex-direction: column;
-    box-shadow: -4px 0 24px rgba(0,0,0,.4);
-    transform: translateX(100%);
-    transition: transform .3s ease;
-  }
-  .api-drawer.open { transform: translateX(0); }
-  .api-drawer-header {
-    padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.08);
-    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-  }
-  .api-drawer-title { font-size: 14px; font-weight: 700; color: #e2e8f0; display: flex; align-items: center; gap: 8px; }
-  .api-drawer-close {
-    background: none; border: none; color: #64748b; font-size: 18px;
-    cursor: pointer; transition: color .2s;
-  }
-  .api-drawer-close:hover { color: #e2e8f0; }
-  .api-drawer-clear {
-    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
-    color: #94a3b8; font-size: 11px; font-weight: 600; border-radius: 6px;
-    padding: 4px 10px; cursor: pointer; transition: all .2s;
-  }
-  .api-drawer-clear:hover { background: rgba(255,255,255,.14); color: #e2e8f0; }
-  .api-drawer-body { flex: 1; overflow-y: auto; padding: 12px; }
-  .api-drawer-empty { color: #4a5568; font-size: 13px; text-align: center; padding: 40px 20px; }
+  .api-pane-title { font-size: 12px; font-weight: 700; color: #94a3b8; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .api-pane-body { flex: 1; overflow-y: auto; padding: 10px; }
+  .api-drawer-empty { color: #4a5568; font-size: 12px; text-align: center; padding: 32px 16px; line-height: 1.6; }
+  .api-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; min-width: 18px; text-align: center; }
+  .api-clear-btn { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: #94a3b8; font-size: 11px; font-weight: 600; border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: all .2s; }
+  .api-clear-btn:hover { background: rgba(255,255,255,.14); color: #e2e8f0; }
 
   .api-entry { margin-bottom: 8px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
   .api-entry-head {
@@ -381,6 +347,8 @@
   </div>
 </header>
 
+<div class="split-container">
+<div class="main-pane" id="main-pane">
 <main>
 
   <!-- Quotation status (shown only when user has at least one consent) -->
@@ -437,6 +405,18 @@
   </div>
 
 </main>
+</div>
+<div class="split-handle" id="split-handle"></div>
+<div class="api-pane">
+  <div class="api-pane-header">
+    <div class="api-pane-title">📡 REST API Calls <span class="api-badge" id="api-count">0</span></div>
+    <button class="api-clear-btn" onclick="doClearApiLogs()">Clear</button>
+  </div>
+  <div class="api-pane-body" id="api-drawer-body">
+    <div class="api-drawer-empty">No API calls yet. Load or manage your consents to see activity.</div>
+  </div>
+</div>
+</div>
 
 <!-- ── Revoke Confirm Modal ── -->
 <div class="modal-overlay" id="modal-revoke">
@@ -465,32 +445,6 @@
       <button class="btn-cancel" onclick="closeModal('delete')">Cancel</button>
       <button class="btn-confirm-delete" id="btn-confirm-delete" onclick="doDeleteAccount()">Delete Everything</button>
     </div>
-  </div>
-</div>
-
-<!-- ── Detail Modal ── -->
-<div class="modal-overlay" id="modal-detail">
-  <div class="detail-modal">
-    <button class="detail-modal-close" onclick="closeModal('detail')">✕</button>
-    <div id="detail-modal-content"></div>
-  </div>
-</div>
-
-<!-- ── API Viewer ── -->
-<button class="api-toggle" id="api-toggle-btn" onclick="toggleApiDrawer()">
-  📡 REST API Calls <span class="api-badge" id="api-count">0</span>
-</button>
-
-<div class="api-drawer" id="api-drawer">
-  <div class="api-drawer-header">
-    <div class="api-drawer-title">REST API Calls</div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="api-drawer-clear" onclick="doClearApiLogs()">Clear</button>
-      <button class="api-drawer-close" onclick="toggleApiDrawer()">✕</button>
-    </div>
-  </div>
-  <div class="api-drawer-body" id="api-drawer-body">
-    <div class="api-drawer-empty">No API calls yet. Load or manage your consents to see activity.</div>
   </div>
 </div>
 
@@ -581,7 +535,8 @@
       var expiry = c.validityTime ? 'Expires ' + formatTs(c.validityTime) : '';
       var canRevoke = (status === 'ACTIVE' || status === 'CREATED');
       var shortId = c.id ? c.id.substring(0, 16) + '…' : 'N/A';
-      html += '<div class="consent-card">';
+      html += '<div class="consent-card" id="consent-card-' + escHtml(c.id || '') + '">';
+      html += '<div class="consent-card-top">';
       html += '<div class="consent-card-left">';
       html += '<div class="consent-card-row1">';
       html += '<span class="consent-id">' + escHtml(shortId) + '</span>';
@@ -592,9 +547,11 @@
       if (expiry) html += '<div class="consent-expiry">' + escHtml(expiry) + '</div>';
       html += '</div>';
       html += '<div class="consent-card-actions">';
-      html += '<button class="btn-view" data-id="' + escHtml(c.id || '') + '">View</button>';
+      html += '<button class="btn-view" data-id="' + escHtml(c.id || '') + '">View ▼</button>';
       html += '<button class="btn-revoke"' + (canRevoke ? '' : ' disabled') + ' data-id="' + escHtml(c.id || '') + '" data-type="' + escHtml(c.type || '') + '">Revoke</button>';
       html += '</div>';
+      html += '</div>';
+      html += '<div class="consent-detail-panel" id="detail-panel-' + escHtml(c.id || '') + '" style="display:none"></div>';
       html += '</div>';
     });
     html += '</div>';
@@ -604,20 +561,29 @@
   // ── View Consent Detail ───────────────────────────────────────────────────────
 
   async function viewConsent(id) {
+    var panel = document.getElementById('detail-panel-' + id);
+    var btn   = document.querySelector('.btn-view[data-id="' + id + '"]');
+    if (!panel) return;
+    if (panel.style.display !== 'none') {
+      panel.style.display = 'none';
+      if (btn) btn.textContent = 'View ▼';
+      return;
+    }
+    panel.style.display = 'block';
+    if (btn) btn.textContent = 'View ▲';
+    if (panel.dataset.loaded) return;
     await clearApiLogs();
-    document.getElementById('detail-modal-content').innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading…</div>';
-    openModal('detail');
+    panel.innerHTML = '<div class="loading-row"><div class="spinner"></div> Loading…</div>';
     try {
       var r = await fetch('/api/consents/' + encodeURIComponent(id));
       var c = await r.json();
       await refreshApiLogs();
       if (!r.ok) {
-        document.getElementById('detail-modal-content').innerHTML = '<div style="color:var(--danger)">Failed to load consent details.</div>';
+        panel.innerHTML = '<div style="color:var(--danger)">Failed to load consent details.</div>';
         return;
       }
       var status = (c.currentStatus || c.status || 'UNKNOWN').toUpperCase();
-      var html = '<div class="modal-title" style="margin-bottom:20px">Consent Details</div>';
-      html += '<div class="detail-section">';
+      var html = '<div class="detail-section">';
       html += '<div class="detail-section-title">Summary</div>';
       html += detailRow('Consent ID', c.id || 'N/A', true);
       html += detailRow('Type', c.type || 'N/A', false);
@@ -639,9 +605,10 @@
         });
         html += '</div>';
       }
-      document.getElementById('detail-modal-content').innerHTML = html;
+      panel.innerHTML = html;
+      panel.dataset.loaded = '1';
     } catch (e) {
-      document.getElementById('detail-modal-content').innerHTML = '<div style="color:var(--danger)">Error: ' + escHtml(e.message) + '</div>';
+      panel.innerHTML = '<div style="color:var(--danger)">Error: ' + escHtml(e.message) + '</div>';
     }
   }
 
@@ -732,17 +699,10 @@
     el.addEventListener('click', function(e) { if (e.target === el) el.classList.remove('open'); });
   });
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') ['revoke','delete','detail'].forEach(closeModal);
+    if (e.key === 'Escape') ['revoke','delete'].forEach(closeModal);
   });
 
-  // ── API Drawer ────────────────────────────────────────────────────────────────
-
-  var drawerOpen = false;
-  function toggleApiDrawer() {
-    drawerOpen = !drawerOpen;
-    document.getElementById('api-drawer').classList.toggle('open', drawerOpen);
-    if (drawerOpen) refreshApiLogs();
-  }
+  // ── API Viewer ────────────────────────────────────────────────────────────────
 
   async function refreshApiLogs() {
     try {
@@ -841,6 +801,35 @@
   }
 
   init();
+
+  // ── Split Resize ─────────────────────────────────────────────────────────────
+  (function() {
+    var handle = document.getElementById('split-handle');
+    var pane   = document.getElementById('main-pane');
+    var cont   = pane.parentElement;
+    var drag   = false, startX = 0, startW = 0;
+    handle.addEventListener('mousedown', function(e) {
+      drag = true; startX = e.clientX;
+      startW = pane.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function(e) {
+      if (!drag) return;
+      var cw = cont.getBoundingClientRect().width;
+      var nw = Math.max(320, Math.min(cw - 260 - 5, startW + (e.clientX - startX)));
+      pane.style.width = nw + 'px';
+    });
+    document.addEventListener('mouseup', function() {
+      if (!drag) return;
+      drag = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+  })();
 </script>
 </body>
 </html>

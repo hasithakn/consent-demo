@@ -293,21 +293,19 @@ app.post('/api/setup/create', async (_, res) => {
 // Create consent record after quotation form submission
 app.post('/api/consents', async (req, res) => {
   try {
-    const { userId, purposes, userData } = req.body;
+    const { userId, purposes } = req.body;
     const payload = {
       type: 'insurance_quotation',
-      validityTime: Date.now() + (90 * 24 * 60 * 60 * 1000), // 3 months in ms
+      validityTime: req.body.validityTime || (Date.now() + (90 * 24 * 60 * 60 * 1000)),
       recurringIndicator: false,
       dataAccessValidityDuration: 0,
       frequency: 0,
       purposes,
-      attributes: { userId: userId || 'anonymous' },
       authorizations: [
         {
           userId: userId || 'anonymous',
           type: 'authorisation',
-          status: 'APPROVED',
-          resources: userData || {}
+          status: 'APPROVED'
         }
       ]
     };

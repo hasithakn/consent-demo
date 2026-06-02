@@ -24,9 +24,10 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
+    height: 100vh;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
   }
 
   /* Header */
@@ -54,7 +55,6 @@
 
   /* Page layout */
   main {
-    flex: 1;
     max-width: 860px;
     width: 100%;
     margin: 0 auto;
@@ -273,52 +273,38 @@
     background: var(--primary-dark);
     padding: 20px 64px;
     display: flex; align-items: center; justify-content: space-between;
-    margin-top: auto;
+    flex-shrink: 0;
   }
   .footer-brand { font-size: 12px; color: rgba(255,255,255,.4); }
   .footer-links { display: flex; gap: 16px; }
   .footer-links a { font-size: 12px; color: rgba(255,255,255,.4); text-decoration: none; }
   .footer-links a:hover { color: rgba(255,255,255,.7); }
 
-  /* ── API Viewer Drawer ── */
-  .api-toggle {
-    position: fixed; bottom: 24px; right: 24px;
-    background: var(--primary-dark); color: #fff;
-    border: none; border-radius: 12px; padding: 12px 18px;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    box-shadow: 0 4px 16px rgba(0,0,0,.25); z-index: 500;
-    display: flex; align-items: center; gap: 8px; transition: background .2s;
+  /* Duration Selector */
+  .duration-selector { display: flex; gap: 10px; flex-wrap: wrap; }
+  .duration-option { cursor: pointer; }
+  .duration-option input[type="radio"] { display: none; }
+  .duration-option span { display: block; padding: 8px 20px; border: 2px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--muted); transition: all .15s; user-select: none; }
+  .duration-option:hover span { border-color: #b8d4f0; color: var(--text); }
+  .duration-option input[type="radio"]:checked + span { border-color: var(--primary); background: var(--primary-light); color: var(--primary); }
+
+  /* ── Split Layout ── */
+  .split-container { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+  .main-pane { width: 62%; min-width: 320px; overflow-y: auto; flex-shrink: 0; }
+  .split-handle { width: 5px; background: var(--border); cursor: col-resize; flex-shrink: 0; transition: background .15s; }
+  .split-handle:hover, .split-handle.dragging { background: var(--accent); }
+  .api-pane { flex: 1; min-width: 260px; display: flex; flex-direction: column; background: #0f1923; overflow: hidden; }
+  .api-pane-header {
+    padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0; background: #080f18;
   }
-  .api-toggle:hover { background: #1e3a5f; }
-  .api-badge {
-    background: var(--accent); color: #fff; font-size: 10px; font-weight: 800;
-    padding: 2px 7px; border-radius: 10px; min-width: 18px; text-align: center;
-  }
-  .api-drawer {
-    position: fixed; right: 0; top: 0; bottom: 0;
-    width: 480px; background: #0f1923; z-index: 600;
-    display: flex; flex-direction: column;
-    box-shadow: -4px 0 24px rgba(0,0,0,.4);
-    transform: translateX(100%); transition: transform .3s ease;
-  }
-  .api-drawer.open { transform: translateX(0); }
-  .api-drawer-header {
-    padding: 18px 20px; border-bottom: 1px solid rgba(255,255,255,.08);
-    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-  }
-  .api-drawer-title { font-size: 14px; font-weight: 700; color: #e2e8f0; }
-  .api-drawer-close {
-    background: none; border: none; color: #64748b; font-size: 18px; cursor: pointer;
-  }
-  .api-drawer-close:hover { color: #e2e8f0; }
-  .api-drawer-clear {
-    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
-    color: #94a3b8; font-size: 11px; font-weight: 600; border-radius: 6px;
-    padding: 4px 10px; cursor: pointer; transition: all .2s;
-  }
-  .api-drawer-clear:hover { background: rgba(255,255,255,.14); color: #e2e8f0; }
-  .api-drawer-body { flex: 1; overflow-y: auto; padding: 12px; }
-  .api-drawer-empty { color: #4a5568; font-size: 13px; text-align: center; padding: 40px 20px; line-height: 1.6; }
+  .api-pane-title { font-size: 12px; font-weight: 700; color: #94a3b8; display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: .5px; }
+  .api-pane-body { flex: 1; overflow-y: auto; padding: 10px; }
+  .api-drawer-empty { color: #4a5568; font-size: 12px; text-align: center; padding: 32px 16px; line-height: 1.6; }
+  .api-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; min-width: 18px; text-align: center; }
+  .api-clear-btn { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: #94a3b8; font-size: 11px; font-weight: 600; border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: all .2s; }
+  .api-clear-btn:hover { background: rgba(255,255,255,.14); color: #e2e8f0; }
   .api-entry { margin-bottom: 8px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
   .api-entry-head { padding: 10px 14px; background: rgba(255,255,255,.04); display: flex; align-items: center; gap: 10px; }
   .api-method { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 5px; font-family: monospace; flex-shrink: 0; }
@@ -335,7 +321,7 @@
   .api-code {
     background: #060d14; border-radius: 6px; padding: 10px 12px;
     font-family: 'Courier New', monospace; font-size: 11px; color: #a0c4ff;
-    white-space: pre-wrap; word-break: break-all; max-height: 260px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto;
     border: 1px solid rgba(255,255,255,.04);
   }
 </style>
@@ -353,6 +339,8 @@
   <a href="/home.html" class="btn-back">← Home</a>
 </header>
 
+<div class="split-container">
+<div class="main-pane" id="main-pane">
 <main>
 
   <div class="page-header">
@@ -415,22 +403,6 @@
         <span>🔐</span> Your Consent &amp; Privacy Preferences
       </div>
 
-      <!-- Privacy policy (required) -->
-      <div class="consent-item required-consent" id="consent-privacy-item">
-        <div class="consent-row">
-          <input type="checkbox" class="consent-checkbox" id="consent-privacy" onchange="onPrivacyChange()">
-          <div class="consent-label">
-            <strong onclick="document.getElementById('consent-privacy').click()">
-              Allow ABC Life Insurance to collect my name, email, and age to prepare my personalised quote
-            </strong>
-            <div class="consent-desc">
-              Your name, email, and age will be used solely to generate your personalised life insurance quotation and policy. This data will be stored securely and managed under our <a href="#" style="color:var(--primary)">Privacy Policy</a>.
-            </div>
-          </div>
-          <span class="consent-badge required">Required</span>
-        </div>
-      </div>
-
       <!-- Marketing email (optional) -->
       <div class="consent-item optional-consent" id="consent-marketing-item">
         <div class="consent-row">
@@ -449,6 +421,18 @@
         </div>
       </div>
 
+      <!-- Consent duration -->
+      <hr class="form-divider" style="margin: 20px 0 16px;">
+      <div class="consent-section-title" style="margin-bottom:14px;">
+        <span>⏱</span> How long should we keep consent to use your data?
+      </div>
+      <div class="duration-selector">
+        <label class="duration-option"><input type="radio" name="consent-duration" value="86400000"><span>1 Day</span></label>
+        <label class="duration-option"><input type="radio" name="consent-duration" value="604800000"><span>1 Week</span></label>
+        <label class="duration-option"><input type="radio" name="consent-duration" value="2592000000" checked><span>1 Month</span></label>
+        <label class="duration-option"><input type="radio" name="consent-duration" value="31536000000"><span>1 Year</span></label>
+      </div>
+
       <!-- Error -->
       <div class="submit-error" id="submit-error"></div>
 
@@ -456,16 +440,27 @@
 
     <div class="form-footer">
       <div class="form-footer-note">
-        By submitting this form, a consent record will be created in our Consent Management system. You can review or revoke your consent at any time.
-        <br><span style="color:#1e3a5f; font-weight:600;">⏱ This consent will expire in 3 months.</span>
+        By submitting this form, a consent record will be created in our Consent Management system. You can review or revoke your consent at any time from your account.
       </div>
-      <button class="btn-submit" id="btn-submit" onclick="submitForm()" disabled>
+      <button class="btn-submit" id="btn-submit" onclick="submitForm()">
         Get My Quotation →
       </button>
     </div>
   </div>
 
 </main>
+</div>
+<div class="split-handle" id="split-handle"></div>
+<div class="api-pane">
+  <div class="api-pane-header">
+    <div class="api-pane-title">📡 REST API Calls <span class="api-badge" id="api-count">0</span></div>
+    <button class="api-clear-btn" onclick="doClearApiLogs()">Clear</button>
+  </div>
+  <div class="api-pane-body" id="api-drawer-body">
+    <div class="api-drawer-empty">Submit the form to see the consent creation API call here.</div>
+  </div>
+</div>
+</div>
 
 <footer>
   <span class="footer-brand" id="footer-company">Life Insurance Provider © 2025</span>
@@ -475,23 +470,6 @@
     <a href="setup/" style="opacity:.5">System Setup</a>
   </div>
 </footer>
-
-<!-- ── API Viewer ── -->
-<button class="api-toggle" id="api-toggle-btn" onclick="toggleApiDrawer()">
-  📡 REST API Calls <span class="api-badge" id="api-count">0</span>
-</button>
-<div class="api-drawer" id="api-drawer">
-  <div class="api-drawer-header">
-    <div class="api-drawer-title">REST API Calls</div>
-    <div style="display:flex;gap:8px;align-items:center;">
-      <button class="api-drawer-clear" onclick="doClearApiLogs()">Clear</button>
-      <button class="api-drawer-close" onclick="toggleApiDrawer()">✕</button>
-    </div>
-  </div>
-  <div class="api-drawer-body" id="api-drawer-body">
-    <div class="api-drawer-empty">Submit the form to see the consent creation API call here.</div>
-  </div>
-</div>
 
 <script>
   var purposeData = {};
@@ -556,22 +534,10 @@
     }
   }
 
-  function onPrivacyChange() {
-    var checked = document.getElementById('consent-privacy').checked;
-    var item    = document.getElementById('consent-privacy-item');
-    item.classList.toggle('checked', checked);
-    updateSubmitButton();
-  }
-
   function onMarketingChange() {
     var checked = document.getElementById('consent-marketing').checked;
     var item    = document.getElementById('consent-marketing-item');
     item.classList.toggle('checked', checked);
-  }
-
-  function updateSubmitButton() {
-    var privacyOk = document.getElementById('consent-privacy').checked;
-    document.getElementById('btn-submit').disabled = !privacyOk;
   }
 
   function showError(fieldId, errId, show) {
@@ -615,6 +581,8 @@
     var age            = document.getElementById('field-age').value.trim();
     var email          = document.getElementById('field-email').value.trim();
     var wantsMarketing = document.getElementById('consent-marketing').checked;
+    var durationMs     = parseInt(document.querySelector('input[name="consent-duration"]:checked').value, 10);
+    var validityTime   = Date.now() + durationMs;
 
     // Build consent purposes
     var purposes = [
@@ -648,14 +616,13 @@
         body: JSON.stringify({
           userId: email,
           purposes: purposes,
-          userData: { name: name, email: email, age: age }
+          userData: { name: name, email: email, age: age },
+          validityTime: validityTime
         })
       });
 
       var data = await r.json();
       await refreshApiLogs();
-      drawerOpen = true;
-      document.getElementById('api-drawer').classList.add('open');
 
       if (r.ok) {
         // Store details for thank-you page
@@ -689,14 +656,6 @@
   });
 
   // ── API Viewer ────────────────────────────────────────────────────────────────
-
-  var drawerOpen = false;
-
-  function toggleApiDrawer() {
-    drawerOpen = !drawerOpen;
-    document.getElementById('api-drawer').classList.toggle('open', drawerOpen);
-    if (drawerOpen) refreshApiLogs();
-  }
 
   async function clearApiLogs() {
     try { await fetch('/api/logs', { method: 'DELETE' }); } catch (e) {}
@@ -755,6 +714,35 @@
 
   loadConfig();
   loadPurposes();
+
+  // ── Split Resize ─────────────────────────────────────────────────────────────
+  (function() {
+    var handle = document.getElementById('split-handle');
+    var pane   = document.getElementById('main-pane');
+    var cont   = pane.parentElement;
+    var drag   = false, startX = 0, startW = 0;
+    handle.addEventListener('mousedown', function(e) {
+      drag = true; startX = e.clientX;
+      startW = pane.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function(e) {
+      if (!drag) return;
+      var cw = cont.getBoundingClientRect().width;
+      var nw = Math.max(320, Math.min(cw - 260 - 5, startW + (e.clientX - startX)));
+      pane.style.width = nw + 'px';
+    });
+    document.addEventListener('mouseup', function() {
+      if (!drag) return;
+      drag = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    });
+  })();
 </script>
 </body>
 </html>
