@@ -87,14 +87,6 @@
   .status-pill.error   { background: var(--danger-light);  color: var(--danger);  }
   .status-pill.loading { background: var(--primary-light); color: var(--primary); }
 
-  .one-time-badge {
-    display: inline-flex; align-items: center; gap: 6px;
-    background: #fff8e1; border: 1px solid #ffe082;
-    color: #7c5200; font-size: 11px; font-weight: 700;
-    padding: 3px 10px; border-radius: 20px; letter-spacing: .3px;
-    margin-top: 6px;
-  }
-
   /* Section cards */
   .section-card {
     background: var(--card); border: 1px solid var(--border);
@@ -197,7 +189,7 @@
   .api-code {
     background: #060d14; border-radius: 6px; padding: 10px 12px;
     font-family: 'Courier New', monospace; font-size: 11px; color: #a0c4ff;
-    white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all;
     border: 1px solid rgba(255,255,255,.04);
   }
 </style>
@@ -222,7 +214,6 @@
     <div class="top-bar-left">
       <h1>Configure Consent Elements &amp; Purposes</h1>
       <p>Register the data elements and consent purposes in the Consent Manager before using the quotation form.</p>
-      <span class="one-time-badge">⚡ One-time setup</span>
     </div>
     <div class="top-bar-right">
       <span id="status-pill" class="status-pill"></span>
@@ -315,7 +306,7 @@
 </div>
 
 <footer>
-  <span>Consent Manager Setup · One-time configuration</span>
+  <span>Consent Manager Setup</span>
   <span id="company-footer"></span>
 </footer>
 

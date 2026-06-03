@@ -321,7 +321,7 @@
   .api-code {
     background: #060d14; border-radius: 6px; padding: 10px 12px;
     font-family: 'Courier New', monospace; font-size: 11px; color: #a0c4ff;
-    white-space: pre-wrap; word-break: break-all; max-height: 240px; overflow-y: auto;
+    white-space: pre-wrap; word-break: break-all;
     border: 1px solid rgba(255,255,255,.04);
   }
 </style>
@@ -506,13 +506,14 @@
     var box     = document.getElementById('policy-purpose-box');
     var descEl  = document.getElementById('policy-purpose-desc');
 
+    var fallbackPolicyDesc = 'We collect your full name, email address, and age to design a personalised life insurance plan tailored to your specific needs. Your age enables us to calculate an accurate premium based on your risk profile. Your contact details ensure we can deliver your policy documents and reach you if we need to discuss your coverage.';
     if (policyPurpose && policyPurpose.description) {
       descEl.textContent = policyPurpose.description;
-      loading.style.display = 'none';
-      box.style.display = 'block';
     } else {
-      loading.style.display = 'none';
+      descEl.textContent = fallbackPolicyDesc;
     }
+    loading.style.display = 'none';
+    box.style.display = 'block';
 
     // Marketing purpose description
     var marketingPurpose = purposeData['marketing_via_email'];
@@ -528,6 +529,12 @@
   function hidePurposeLoading() {
     var loading = document.getElementById('policy-purpose-loading');
     if (loading) loading.style.display = 'none';
+    var box    = document.getElementById('policy-purpose-box');
+    var descEl = document.getElementById('policy-purpose-desc');
+    if (box && box.style.display === 'none') {
+      if (descEl) descEl.textContent = 'We collect your full name, email address, and age to design a personalised life insurance plan tailored to your specific needs. Your age enables us to calculate an accurate premium based on your risk profile. Your contact details ensure we can deliver your policy documents and reach you if we need to discuss your coverage.';
+      box.style.display = 'block';
+    }
     var mDesc = document.getElementById('marketing-purpose-desc');
     if (mDesc && !mDesc.classList.contains('loaded')) {
       mDesc.textContent = 'Receive personalised insurance offers and helpful tips. You can unsubscribe at any time.';
