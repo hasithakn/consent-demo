@@ -320,10 +320,15 @@
   .api-block-label:first-child { margin-top: 0; }
   .api-code {
     background: #060d14; border-radius: 6px; padding: 10px 12px;
-    font-family: 'Courier New', monospace; font-size: 11px; color: #a0c4ff;
+    font-family: 'Courier New', monospace; font-size: 12px; color: #a0c4ff;
     white-space: pre-wrap; word-break: break-all;
     border: 1px solid rgba(255,255,255,.04);
   }
+  .json-key  { color: #9cdcfe; }
+  .json-str  { color: #ce9178; }
+  .json-num  { color: #b5cea8; }
+  .json-bool { color: #569cd6; }
+  .json-null { color: #808080; }
 </style>
 </head>
 <body>
@@ -704,9 +709,9 @@
         '</div>' +
         '<div class="api-entry-body">' +
         (log.reqBody
-          ? '<div class="api-block-label">Request Body</div><div class="api-code">' + escHtml(JSON.stringify(log.reqBody, null, 2)) + '</div>'
+          ? '<div class="api-block-label">Request Body</div><div class="api-code">' + syntaxHighlight(log.reqBody) + '</div>'
           : '<div class="api-block-label">Request Body</div><div class="api-code" style="color:#4a5568;font-style:italic">No body</div>') +
-        '<div class="api-block-label">Response (' + log.status + ')</div><div class="api-code">' + escHtml(JSON.stringify(log.resBody, null, 2)) + '</div>' +
+        '<div class="api-block-label">Response (' + log.status + ')</div><div class="api-code">' + syntaxHighlight(log.resBody) + '</div>' +
         '</div>' +
         '</div>';
     }).join('');
@@ -714,6 +719,18 @@
 
   function escHtml(str) {
     return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function syntaxHighlight(obj) {
+    if (obj === null || obj === undefined) return '<span class="json-null">null</span>';
+    var json = JSON.stringify(obj, null, 2)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function(match) {
+      if (/^"/.test(match)) return '<span class="' + (/:$/.test(match) ? 'json-key' : 'json-str') + '">' + match + '</span>';
+      if (/true|false/.test(match)) return '<span class="json-bool">' + match + '</span>';
+      if (/null/.test(match))       return '<span class="json-null">' + match + '</span>';
+      return '<span class="json-num">' + match + '</span>';
+    });
   }
 
   // Clear stale logs from previous pages on load
