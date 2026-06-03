@@ -180,7 +180,7 @@
   .api-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; min-width: 18px; text-align: center; }
   .api-clear-btn { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); color: #94a3b8; font-size: 11px; font-weight: 600; border-radius: 6px; padding: 4px 10px; cursor: pointer; transition: all .2s; }
   .api-clear-btn:hover { background: rgba(255,255,255,.14); color: #e2e8f0; }
-  .api-entry { margin-bottom: 8px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.06); }
+  .api-entry { margin-bottom: 16px; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); }
   .api-entry-head { padding: 10px 14px; background: rgba(255,255,255,.04); display: flex; align-items: center; gap: 10px; }
   .api-method { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 5px; font-family: monospace; flex-shrink: 0; }
   .m-post   { background: #1a3a5c; color: #60a5fa; }
@@ -191,8 +191,10 @@
   .s-ok  { background: #1a4731; color: #4ade80; }
   .s-err { background: #3b0f0f; color: #f87171; }
   .api-entry-body { padding: 12px 14px; background: #0a1018; border-top: 1px solid rgba(255,255,255,.04); }
-  .api-block-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #4a5568; margin-bottom: 6px; margin-top: 12px; }
+  .api-block-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #e2e8f0; margin-bottom: 6px; margin-top: 14px; }
   .api-block-label:first-child { margin-top: 0; }
+  .api-block-label:not(:first-child) { border-top: 1px solid rgba(255,255,255,.12); padding-top: 10px; }
+  .api-entry-sep { height: 2px; background: rgba(255,255,255,.15); margin: 4px 0 16px; border-radius: 1px; }
   .api-code {
     background: #060d14; border-radius: 6px; padding: 10px 12px;
     font-family: 'Courier New', monospace; font-size: 12px; color: #a0c4ff;
@@ -389,7 +391,7 @@
         '<div class="api-block-label">Response (' + log.status + ')</div><div class="api-code">' + syntaxHighlight(log.resBody) + '</div>' +
         '</div>' +
         '</div>';
-    }).join('');
+    }).join('<div class="api-entry-sep"></div>');
   }
 
   function escHtml(str) {
